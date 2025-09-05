@@ -39,9 +39,11 @@ class MainActivity : ComponentActivity() {
                 ) {
                     val viewModel: TunerViewModel = viewModel()
                     val tuningResult by viewModel.tuningResult.collectAsState()
+                    val pitchHistory by viewModel.pitchHistory.collectAsState()
                     
                     TunerScreen(
                         tuningResult = tuningResult,
+                        pitchHistory = pitchHistory,
                         hasPermission = hasPermission,
                         onRequestPermission = {
                             requestPermissionLauncher.launch(Manifest.permission.RECORD_AUDIO)

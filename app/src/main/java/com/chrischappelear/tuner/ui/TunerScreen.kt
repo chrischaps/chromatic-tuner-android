@@ -37,6 +37,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import android.content.res.Configuration
 import com.chrischappelear.tuner.R
+import com.chrischappelear.tuner.tuning.PitchHistoryPoint
 import com.chrischappelear.tuner.tuning.TuningResult
 import kotlin.math.*
 
@@ -44,6 +45,7 @@ import kotlin.math.*
 @Composable
 fun TunerScreen(
     tuningResult: TuningResult,
+    pitchHistory: List<PitchHistoryPoint>,
     hasPermission: Boolean,
     onRequestPermission: () -> Unit
 ) {
@@ -65,6 +67,7 @@ fun TunerScreen(
         } else {
             TunerContent(
                 tuningResult = tuningResult,
+                pitchHistory = pitchHistory,
                 isLandscape = isLandscape
             )
         }
@@ -104,6 +107,7 @@ private fun PermissionRequest(onRequestPermission: () -> Unit) {
 @Composable
 private fun TunerContent(
     tuningResult: TuningResult,
+    pitchHistory: List<PitchHistoryPoint>,
     isLandscape: Boolean
 ) {
     // Simplified single column layout - no button to worry about
@@ -162,6 +166,14 @@ private fun TunerContent(
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
+        
+        Spacer(modifier = Modifier.height(if (isLandscape) 16.dp else 24.dp))
+        
+        // Add pitch history graph
+        PitchHistoryGraph(
+            pitchHistory = pitchHistory,
+            modifier = Modifier.padding(horizontal = if (isLandscape) 8.dp else 0.dp)
+        )
         
         Spacer(modifier = Modifier.height(32.dp))
     }

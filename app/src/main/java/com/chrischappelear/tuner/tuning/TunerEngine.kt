@@ -19,9 +19,13 @@ data class TuningResult(
 
 class TunerEngine {
     private val audioRecorder = AudioRecorder()
+    private val pitchHistory = PitchHistory()
     
     private val _tuningResult = MutableStateFlow(TuningResult())
     val tuningResult: StateFlow<TuningResult> = _tuningResult
+    
+    private val _pitchHistoryData = MutableStateFlow(emptyList<PitchHistoryPoint>())
+    val pitchHistoryData: StateFlow<List<PitchHistoryPoint>> = _pitchHistoryData
     
     init {
         CoroutineScope(Dispatchers.Main).launch {
@@ -32,6 +36,9 @@ class TunerEngine {
                 processTuningData(frequency, amplitude)
             }.collect { result ->
                 _tuningResult.value = result
+                // Add to pitch history and update history data flow
+                pitchHistory.addPoint(result)
+                _pitchHistoryData.value = pitchHistory.history
             }
         }
     }
@@ -70,5 +77,7 @@ class TunerEngine {
     fun stopTuning() {
         audioRecorder.stopRecording()
         _tuningResult.value = TuningResult()
+        pitchHistory.clear()
+        _pitchHistoryData.value = emptyList()
     }
 }
