@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources xmlns:tools="http://schemas.android.com/tools">
+    <style name="Base.Theme.ChromaticTuner" parent="Theme.AppCompat.DayNight">
+        <!-- Customize your light theme here. -->
+    </style>
+
+    <style name="Theme.ChromaticTuner" parent="Base.Theme.ChromaticTuner" />
+</resources>

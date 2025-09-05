@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Chromatic Tuner</string>
+    <string name="tuning">Tuning...</string>
+    <string name="microphone_permission_required">Microphone permission is required to use the tuner</string>
+    <string name="grant_permission">Grant Permission</string>
+    <string name="frequency_hz">%.1f Hz</string>
+    <string name="cents_sharp">+%d cents</string>
+    <string name="cents_flat">%d cents</string>
+    <string name="in_tune">In Tune</string>
+</resources>
