@@ -110,13 +110,19 @@ private fun TunerContent(
     pitchHistory: List<PitchHistoryPoint>,
     isLandscape: Boolean
 ) {
-    // Simplified single column layout - no button to worry about
-    Column(
-        horizontalAlignment = Alignment.CenterHorizontally,
-        modifier = Modifier
-            .fillMaxSize()
-            .verticalScroll(rememberScrollState())
+    // Main layout with graph anchored to bottom
+    Box(
+        modifier = Modifier.fillMaxSize()
     ) {
+        // Main content in scrollable column
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            modifier = Modifier
+                .fillMaxWidth()
+                .align(Alignment.TopCenter)
+                .verticalScroll(rememberScrollState())
+                .padding(bottom = 140.dp) // Leave space for bottom graph
+        ) {
         // Logo and Title Section
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
@@ -167,15 +173,17 @@ private fun TunerContent(
             )
         }
         
-        Spacer(modifier = Modifier.height(if (isLandscape) 16.dp else 24.dp))
+        Spacer(modifier = Modifier.height(32.dp))
+        }
         
-        // Add pitch history graph
+        // Pitch history graph anchored to bottom
         PitchHistoryGraph(
             pitchHistory = pitchHistory,
-            modifier = Modifier.padding(horizontal = if (isLandscape) 8.dp else 0.dp)
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .fillMaxWidth()
+                .padding(16.dp)
         )
-        
-        Spacer(modifier = Modifier.height(32.dp))
     }
 }
 
