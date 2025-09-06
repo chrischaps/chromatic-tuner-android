@@ -12,7 +12,7 @@ import kotlin.math.sqrt
 
 class AudioRecorder {
     private val sampleRate = 44100
-    private val bufferSize = 4096
+    private val bufferSize = 8192 // Increased for better frequency resolution
     private val fft = FFT()
     
     // Volume threshold to ignore background noise
@@ -81,7 +81,12 @@ class AudioRecorder {
                 } else {
                     val paddedSize = nextPowerOfTwo(doubleBuffer.size)
                     val paddedBuffer = DoubleArray(paddedSize)
-                    doubleBuffer.copyInto(paddedBuffer)
+                    
+                    // Apply Hann window to reduce spectral leakage
+                    for (i in doubleBuffer.indices) {
+                        val windowValue = 0.5 * (1 - kotlin.math.cos(2 * kotlin.math.PI * i / (doubleBuffer.size - 1)))
+                        paddedBuffer[i] = doubleBuffer[i] * windowValue
+                    }
                     
                     val fftResult = fft.fft(paddedBuffer)
                     val magnitudes = fft.getMagnitudeSpectrum(fftResult)
@@ -113,20 +118,29 @@ class AudioRecorder {
         val minIndex = (minFreq * magnitudes.size / sampleRate).toInt()
         val maxIndex = (maxFreq * magnitudes.size / sampleRate).toInt().coerceAtMost(magnitudes.size - 1)
         
-        var maxMagnitude = 0.0
-        var peakIndex = 0
+        // Find peaks above noise threshold
+        val peaks = mutableListOf<Pair<Int, Double>>()
+        val noiseThreshold = magnitudes.slice(0..minIndex/2).maxOrNull() ?: 0.0
+        val dynamicThreshold = kotlin.math.max(noiseThreshold * 3.0, 0.01)
         
+        // Collect significant peaks
         for (i in minIndex..maxIndex) {
-            if (magnitudes[i] > maxMagnitude) {
-                maxMagnitude = magnitudes[i]
-                peakIndex = i
+            if (magnitudes[i] > dynamicThreshold) {
+                // Check if it's a local maximum
+                val isLocalMax = (i == minIndex || magnitudes[i] > magnitudes[i-1]) &&
+                                (i == maxIndex || magnitudes[i] > magnitudes[i+1])
+                if (isLocalMax) {
+                    peaks.add(i to magnitudes[i])
+                }
             }
         }
         
-        if (maxMagnitude < 0.01) return 0.0
+        if (peaks.isEmpty()) return 0.0
         
-        val freq = peakIndex * sampleRate.toDouble() / magnitudes.size
-        return parabolicInterpolation(magnitudes, peakIndex, sampleRate, magnitudes.size)
+        // Find the strongest peak
+        val strongestPeak = peaks.maxByOrNull { it.second } ?: return 0.0
+        
+        return parabolicInterpolation(magnitudes, strongestPeak.first, sampleRate, magnitudes.size)
     }
     
     private fun parabolicInterpolation(magnitudes: DoubleArray, peakIndex: Int, sampleRate: Int, fftSize: Int): Double {
