@@ -65,7 +65,7 @@ fun PitchHistoryGraph(
         Canvas(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(120.dp)
+                .height(180.dp)
         ) {
             drawPitchHistoryWithLabels(pitchHistory, this)
         }

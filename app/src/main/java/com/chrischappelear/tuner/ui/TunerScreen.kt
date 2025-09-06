@@ -121,7 +121,7 @@ private fun TunerContent(
                 .fillMaxWidth()
                 .align(Alignment.TopCenter)
                 .verticalScroll(rememberScrollState())
-                .padding(bottom = 140.dp) // Leave space for bottom graph
+                .padding(bottom = 200.dp) // Leave more space for expanded graph
         ) {
         // Logo and Title Section
         Column(
