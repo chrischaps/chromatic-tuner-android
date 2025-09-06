@@ -65,7 +65,7 @@ fun PitchHistoryGraph(
         Canvas(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(180.dp)
+                .height(220.dp)
         ) {
             drawPitchHistoryWithLabels(pitchHistory, this)
         }
@@ -112,8 +112,8 @@ private fun drawPitchHistoryWithLabels(
         // Draw note labels first (background)
         drawNoteLabels(this, adjustedMinFreq, adjustedMaxFreq)
         
-        // Draw grid lines
-        drawGrid(this, adjustedMinFreq, adjustedMaxFreq, startTime, currentTime)
+        // Draw note-aligned grid lines
+        drawNoteGrid(this, adjustedMinFreq, adjustedMaxFreq, startTime, currentTime)
         
         // Draw smoothed pitch line
         drawSmoothPitchLine(visiblePoints, this, adjustedMinFreq, adjustedMaxFreq, startTime, currentTime)
@@ -229,6 +229,58 @@ private fun drawEmptyState(drawScope: DrawScope) {
         // Vertical lines
         for (i in 0..10) {
             val x = (i * size.width / 10f)
+            drawLine(
+                color = gridColor,
+                start = Offset(x, 0f),
+                end = Offset(x, size.height),
+                strokeWidth = 1.dp.toPx()
+            )
+        }
+    }
+}
+
+private fun drawNoteGrid(
+    drawScope: DrawScope,
+    minFreq: Double,
+    maxFreq: Double,
+    startTime: Long,
+    endTime: Long
+) {
+    with(drawScope) {
+        val gridColor = Color.Gray.copy(alpha = 0.3f)
+        val noteGridColor = Color.Gray.copy(alpha = 0.5f)
+        
+        // Draw horizontal lines at actual note frequencies
+        // Generate note frequencies within the visible range
+        val noteFrequencies = mutableListOf<Double>()
+        
+        // Start from the lowest MIDI note that's above minFreq
+        val minMidi = NoteFrequencies.frequencyToMidiNumber(minFreq).toInt()
+        val maxMidi = NoteFrequencies.frequencyToMidiNumber(maxFreq).toInt()
+        
+        for (midi in minMidi..maxMidi) {
+            val freq = NoteFrequencies.midiNumberToFrequency(midi.toDouble())
+            if (freq >= minFreq && freq <= maxFreq) {
+                noteFrequencies.add(freq)
+            }
+        }
+        
+        // Draw lines at note frequencies
+        noteFrequencies.forEach { freq ->
+            val y = size.height - (freq - minFreq) * size.height / (maxFreq - minFreq)
+            
+            drawLine(
+                color = noteGridColor,
+                start = Offset(0f, y.toFloat()),
+                end = Offset(size.width, y.toFloat()),
+                strokeWidth = 1.dp.toPx()
+            )
+        }
+        
+        // Vertical time grid lines (keep same as before)
+        val timeSteps = 10
+        for (i in 0..timeSteps) {
+            val x = i * size.width / timeSteps
             drawLine(
                 color = gridColor,
                 start = Offset(x, 0f),
