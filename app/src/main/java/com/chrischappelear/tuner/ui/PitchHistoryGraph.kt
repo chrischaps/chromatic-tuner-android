@@ -118,8 +118,8 @@ private fun drawPitchHistoryWithLabels(
         // Draw smoothed pitch line
         drawSmoothPitchLine(visiblePoints, this, adjustedMinFreq, adjustedMaxFreq, startTime, currentTime)
         
-        // Draw tuning accuracy indicators
-        drawTuningIndicators(visiblePoints, this, adjustedMinFreq, adjustedMaxFreq, startTime, currentTime)
+        // Draw tuning accuracy indicators (using same smoothing as line)
+        drawSmoothTuningIndicators(visiblePoints, this, adjustedMinFreq, adjustedMaxFreq, startTime, currentTime)
     }
 }
 
@@ -374,6 +374,52 @@ private fun drawPitchLine(
             color = Color(0xFF2196F3), // Blue
             style = Stroke(width = 3.dp.toPx())
         )
+    }
+}
+
+private fun drawSmoothTuningIndicators(
+    points: List<PitchHistoryPoint>,
+    drawScope: DrawScope,
+    minFreq: Double,
+    maxFreq: Double,
+    startTime: Long,
+    endTime: Long
+) {
+    with(drawScope) {
+        // Create smoothed points for visual display (same as line smoothing)
+        val smoothedPoints = mutableListOf<Triple<Float, Float, PitchHistoryPoint>>()
+        
+        points.forEachIndexed { index, point ->
+            val x = ((point.timestamp - startTime).toFloat() / (endTime - startTime)) * size.width
+            val y = size.height - ((point.frequency - minFreq) / (maxFreq - minFreq)).toFloat() * size.height
+            smoothedPoints.add(Triple(x, y, point))
+        }
+        
+        // Apply same smoothing as the line
+        smoothedPoints.forEachIndexed { index, (x, y, point) ->
+            // Simple 3-point averaging for middle points (same as line smoothing)
+            val smoothedY = if (index > 0 && index < smoothedPoints.size - 1 && smoothedPoints.size > 2) {
+                val prevY = smoothedPoints[index-1].second
+                val nextY = smoothedPoints[index+1].second
+                (prevY + y + nextY) / 3f
+            } else {
+                y
+            }
+            
+            // Color based on tuning accuracy
+            val color = when {
+                abs(point.centsOffset) <= 10 -> Color(0xFF4CAF50) // Green - in tune
+                point.centsOffset > 0 -> Color(0xFFFF5722) // Red - sharp
+                else -> Color(0xFF2196F3) // Blue - flat
+            }
+            
+            // Draw small circles for data points
+            drawCircle(
+                color = color,
+                radius = 3.dp.toPx(),
+                center = Offset(x, smoothedY)
+            )
+        }
     }
 }
 
