@@ -18,6 +18,15 @@ class AudioRecorder {
     // Volume threshold to ignore background noise
     private val volumeThreshold = 0.005 // Adjust this value as needed
     
+    // Frequency smoothing parameters
+    private val smoothingBufferSize = 5 // Number of recent frequencies to average
+    private val maxFrequencyJump = 50.0 // Maximum Hz jump allowed per update
+    private val smoothingFactor = 0.3 // Low-pass filter coefficient (0-1, lower = smoother)
+    
+    // Smoothing state
+    private val frequencyHistory = mutableListOf<Double>()
+    private var previousSmoothedFreq = 0.0
+    
     private var audioRecord: AudioRecord? = null
     private var isRecording = false
     private var recordingJob: Job? = null
@@ -60,6 +69,10 @@ class AudioRecorder {
         audioRecord = null
         _frequency.value = 0.0
         _amplitude.value = 0.0
+        
+        // Clear smoothing state
+        frequencyHistory.clear()
+        previousSmoothedFreq = 0.0
     }
     
     private suspend fun processAudio() {
@@ -89,7 +102,9 @@ class AudioRecorder {
                     val fundamentalFreq = findFundamentalFrequency(magnitudes)
                     val maxAmplitude = magnitudes.maxOrNull() ?: 0.0
                     
-                    _frequency.value = fundamentalFreq
+                    val smoothedFreq = applySmoothingFilter(fundamentalFreq)
+                    
+                    _frequency.value = smoothedFreq
                     _amplitude.value = rmsAmplitude // Use RMS amplitude instead of peak magnitude
                 }
             }
@@ -149,5 +164,44 @@ class AudioRecorder {
     
     private fun nextPowerOfTwo(n: Int): Int {
         return 2.0.pow(kotlin.math.ceil(log2(n.toDouble()))).toInt()
+    }
+    
+    private fun applySmoothingFilter(currentFreq: Double): Double {
+        if (currentFreq <= 0.0) {
+            // Reset smoothing state when no signal
+            frequencyHistory.clear()
+            previousSmoothedFreq = 0.0
+            return 0.0
+        }
+        
+        // Add current frequency to history
+        frequencyHistory.add(currentFreq)
+        
+        // Keep only recent frequencies
+        if (frequencyHistory.size > smoothingBufferSize) {
+            frequencyHistory.removeAt(0)
+        }
+        
+        // Apply rate limiting - reject sudden large jumps
+        if (previousSmoothedFreq > 0.0) {
+            val frequencyDiff = kotlin.math.abs(currentFreq - previousSmoothedFreq)
+            if (frequencyDiff > maxFrequencyJump) {
+                // Use previous frequency if jump is too large
+                return previousSmoothedFreq
+            }
+        }
+        
+        // Calculate moving average
+        val movingAverage = frequencyHistory.average()
+        
+        // Apply low-pass filter (exponential smoothing)
+        val smoothedFreq = if (previousSmoothedFreq > 0.0) {
+            previousSmoothedFreq * (1 - smoothingFactor) + movingAverage * smoothingFactor
+        } else {
+            movingAverage
+        }
+        
+        previousSmoothedFreq = smoothedFreq
+        return smoothedFreq
     }
 }
