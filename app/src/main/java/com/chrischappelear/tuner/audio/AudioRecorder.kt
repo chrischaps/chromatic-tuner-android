@@ -147,23 +147,54 @@ class AudioRecorder {
         var bestCandidate = 0
         var bestScore = 0.0
         
-        // Test each peak as a potential fundamental
+        // First, check if any peak could be a harmonic of a missing fundamental
+        val potentialFundamentals = mutableMapOf<Int, Double>()
+        
         for (peak in peaks) {
-            val fundamentalIndex = peak.first
-            val fundamentalFreq = fundamentalIndex * sampleRate.toDouble() / magnitudes.size
+            val peakFreq = peak.first * sampleRate.toDouble() / magnitudes.size
+            
+            // Check if this peak could be the 2nd, 3rd, 4th, or 5th harmonic of a fundamental
+            for (harmonicNum in 2..5) {
+                val potentialFundamentalFreq = peakFreq / harmonicNum
+                if (potentialFundamentalFreq >= 80.0 && potentialFundamentalFreq <= 400.0) {
+                    val potentialFundamentalIndex = (potentialFundamentalFreq * magnitudes.size / sampleRate).toInt()
+                    
+                    // Look for this potential fundamental (even if weak)
+                    var fundamentalMagnitude = 0.0
+                    for (offset in -4..4) {
+                        val testIndex = (potentialFundamentalIndex + offset).coerceIn(0, magnitudes.size - 1)
+                        fundamentalMagnitude = kotlin.math.max(fundamentalMagnitude, magnitudes[testIndex])
+                    }
+                    
+                    // Score based on harmonic strength even if fundamental is weak
+                    val harmonicWeight = peak.second / harmonicNum // Weight by harmonic number
+                    val totalScore = fundamentalMagnitude * 2.0 + harmonicWeight // Boost fundamental detection
+                    
+                    potentialFundamentals[potentialFundamentalIndex] = 
+                        kotlin.math.max(potentialFundamentals[potentialFundamentalIndex] ?: 0.0, totalScore)
+                }
+            }
+        }
+        
+        // Test both direct peaks and inferred fundamentals
+        val allCandidates = peaks.map { it.first to it.second }.toMutableList()
+        allCandidates.addAll(potentialFundamentals.toList())
+        
+        for ((candidateIndex, candidateScore) in allCandidates) {
+            val fundamentalFreq = candidateIndex * sampleRate.toDouble() / magnitudes.size
             
             // Skip if too high to be a fundamental for guitar
             if (fundamentalFreq > 400.0) continue
             
-            var harmonicScore = peak.second // Start with the fundamental's magnitude
+            var harmonicScore = candidateScore
             
             // Check for harmonics at 2f, 3f, 4f, 5f
             for (harmonicNum in 2..5) {
-                val harmonicIndex = (fundamentalIndex * harmonicNum).coerceAtMost(magnitudes.size - 1)
+                val harmonicIndex = (candidateIndex * harmonicNum).coerceAtMost(magnitudes.size - 1)
                 
-                // Look for peak within ±3 bins of expected harmonic
+                // Look for peak within ±4 bins of expected harmonic (wider tolerance)
                 var harmonicMagnitude = 0.0
-                for (offset in -3..3) {
+                for (offset in -4..4) {
                     val testIndex = (harmonicIndex + offset).coerceIn(0, magnitudes.size - 1)
                     harmonicMagnitude = kotlin.math.max(harmonicMagnitude, magnitudes[testIndex])
                 }
@@ -173,19 +204,23 @@ class AudioRecorder {
                 harmonicScore += harmonicMagnitude * weight
             }
             
-            // Boost score for lower frequencies (more likely to be fundamental)
-            val frequencyBoost = if (fundamentalFreq < 200.0) 1.5 else 1.0
+            // Strong boost for very low frequencies (guitar fundamentals)
+            val frequencyBoost = when {
+                fundamentalFreq < 100.0 -> 3.0  // Very strong boost for bass notes
+                fundamentalFreq < 200.0 -> 2.0  // Strong boost for low notes
+                else -> 1.0
+            }
             harmonicScore *= frequencyBoost
             
             if (harmonicScore > bestScore) {
                 bestScore = harmonicScore
-                bestCandidate = fundamentalIndex
+                bestCandidate = candidateIndex
             }
         }
         
-        // Fallback to strongest peak if no good fundamental found
+        // Fallback to lowest frequency peak if no good fundamental found
         return if (bestCandidate == 0) {
-            peaks.maxByOrNull { it.second }?.first ?: 0
+            peaks.minByOrNull { it.first * sampleRate.toDouble() / magnitudes.size }?.first ?: 0
         } else {
             bestCandidate
         }
