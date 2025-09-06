@@ -137,10 +137,58 @@ class AudioRecorder {
         
         if (peaks.isEmpty()) return 0.0
         
-        // Find the strongest peak
-        val strongestPeak = peaks.maxByOrNull { it.second } ?: return 0.0
+        // Use harmonic product spectrum (HPS) to find true fundamental
+        val fundamentalCandidate = findFundamentalWithHPS(peaks, magnitudes)
         
-        return parabolicInterpolation(magnitudes, strongestPeak.first, sampleRate, magnitudes.size)
+        return parabolicInterpolation(magnitudes, fundamentalCandidate, sampleRate, magnitudes.size)
+    }
+    
+    private fun findFundamentalWithHPS(peaks: List<Pair<Int, Double>>, magnitudes: DoubleArray): Int {
+        var bestCandidate = 0
+        var bestScore = 0.0
+        
+        // Test each peak as a potential fundamental
+        for (peak in peaks) {
+            val fundamentalIndex = peak.first
+            val fundamentalFreq = fundamentalIndex * sampleRate.toDouble() / magnitudes.size
+            
+            // Skip if too high to be a fundamental for guitar
+            if (fundamentalFreq > 400.0) continue
+            
+            var harmonicScore = peak.second // Start with the fundamental's magnitude
+            
+            // Check for harmonics at 2f, 3f, 4f, 5f
+            for (harmonicNum in 2..5) {
+                val harmonicIndex = (fundamentalIndex * harmonicNum).coerceAtMost(magnitudes.size - 1)
+                
+                // Look for peak within ±3 bins of expected harmonic
+                var harmonicMagnitude = 0.0
+                for (offset in -3..3) {
+                    val testIndex = (harmonicIndex + offset).coerceIn(0, magnitudes.size - 1)
+                    harmonicMagnitude = kotlin.math.max(harmonicMagnitude, magnitudes[testIndex])
+                }
+                
+                // Weight lower harmonics more heavily
+                val weight = 1.0 / harmonicNum
+                harmonicScore += harmonicMagnitude * weight
+            }
+            
+            // Boost score for lower frequencies (more likely to be fundamental)
+            val frequencyBoost = if (fundamentalFreq < 200.0) 1.5 else 1.0
+            harmonicScore *= frequencyBoost
+            
+            if (harmonicScore > bestScore) {
+                bestScore = harmonicScore
+                bestCandidate = fundamentalIndex
+            }
+        }
+        
+        // Fallback to strongest peak if no good fundamental found
+        return if (bestCandidate == 0) {
+            peaks.maxByOrNull { it.second }?.first ?: 0
+        } else {
+            bestCandidate
+        }
     }
     
     private fun parabolicInterpolation(magnitudes: DoubleArray, peakIndex: Int, sampleRate: Int, fftSize: Int): Double {
