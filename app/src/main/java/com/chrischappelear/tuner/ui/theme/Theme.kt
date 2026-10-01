@@ -1,39 +1,61 @@
 package com.chrischappelear.tuner.ui.theme
 
-import android.app.Activity
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.SideEffect
-import androidx.compose.ui.graphics.toArgb
-import androidx.compose.ui.platform.LocalView
-import androidx.core.view.WindowCompat
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.ReadOnlyComposable
 
-private val DarkColorScheme = darkColorScheme()
-private val LightColorScheme = lightColorScheme()
+private fun TunerColors.toMaterial() = if (isDark) {
+    darkColorScheme(
+        primary = inTune,
+        onPrimary = background,
+        secondary = drift,
+        background = background,
+        onBackground = ink,
+        surface = surface,
+        onSurface = ink,
+        surfaceVariant = track,
+        onSurfaceVariant = inkMuted,
+        surfaceContainerLow = surface,
+        outline = inkFaint,
+        outlineVariant = track
+    )
+} else {
+    lightColorScheme(
+        primary = inTune,
+        onPrimary = backgroundGlow,
+        secondary = drift,
+        background = background,
+        onBackground = ink,
+        surface = surface,
+        onSurface = ink,
+        surfaceVariant = track,
+        onSurfaceVariant = inkMuted,
+        surfaceContainerLow = backgroundGlow,
+        outline = inkFaint,
+        outlineVariant = track
+    )
+}
 
 @Composable
 fun ChromaticTunerTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
     content: @Composable () -> Unit
 ) {
-    val colorScheme = when {
-        darkTheme -> DarkColorScheme
-        else -> LightColorScheme
+    val colors = if (darkTheme) DuskColors else PaperColors
+    CompositionLocalProvider(LocalTunerColors provides colors) {
+        MaterialTheme(
+            colorScheme = colors.toMaterial(),
+            typography = TunerTypography,
+            content = content
+        )
     }
-    val view = LocalView.current
-    if (!view.isInEditMode) {
-        SideEffect {
-            val window = (view.context as Activity).window
-            window.statusBarColor = colorScheme.primary.toArgb()
-            WindowCompat.getInsetsController(window, view).isAppearanceLightStatusBars = darkTheme
-        }
-    }
+}
 
-    MaterialTheme(
-        colorScheme = colorScheme,
-        content = content
-    )
+object TunerTheme {
+    val colors: TunerColors
+        @Composable @ReadOnlyComposable get() = LocalTunerColors.current
 }

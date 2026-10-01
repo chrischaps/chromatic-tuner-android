@@ -1,53 +1,26 @@
 package com.chrischappelear.tuner.tuning
 
-data class PitchHistoryPoint(
-    val timestamp: Long,
-    val frequency: Double,
-    val note: Note,
-    val centsOffset: Int,
-    val isActive: Boolean
+/**
+ * One sample of the cents trace. [cents] is null while nothing is sounding,
+ * which leaves a gap in the line.
+ */
+data class TracePoint(
+    val timeMs: Long,
+    val cents: Float?,
+    val note: Note?
 )
 
-class PitchHistory {
-    private val maxHistoryDuration = 10_000L // 10 seconds in milliseconds
-    private val _history = mutableListOf<PitchHistoryPoint>()
-    
-    val history: List<PitchHistoryPoint>
-        get() = _history.toList()
-    
-    fun addPoint(tuningResult: TuningResult) {
-        val currentTime = System.currentTimeMillis()
-        
-        val point = PitchHistoryPoint(
-            timestamp = currentTime,
-            frequency = tuningResult.frequency,
-            note = tuningResult.note,
-            centsOffset = tuningResult.centsOffset,
-            isActive = tuningResult.isActive
-        )
-        
-        _history.add(point)
-        
-        // Remove old points beyond our time window
-        cleanupOldPoints(currentTime)
+/** A rolling window of recent trace points. */
+class PitchHistory(val durationMs: Long = 8_000L) {
+    private val points = ArrayDeque<TracePoint>()
+
+    fun add(point: TracePoint) {
+        points.addLast(point)
+        val cutoff = point.timeMs - durationMs
+        while (points.isNotEmpty() && points.first().timeMs < cutoff) points.removeFirst()
     }
-    
-    private fun cleanupOldPoints(currentTime: Long) {
-        val cutoffTime = currentTime - maxHistoryDuration
-        _history.removeAll { it.timestamp < cutoffTime }
-    }
-    
-    fun clear() {
-        _history.clear()
-    }
-    
-    fun getActivePointsInRange(startTime: Long, endTime: Long): List<PitchHistoryPoint> {
-        return _history.filter { point ->
-            point.timestamp in startTime..endTime && point.isActive && point.frequency > 0
-        }
-    }
-    
-    fun getLatestActivePoint(): PitchHistoryPoint? {
-        return _history.lastOrNull { it.isActive && it.frequency > 0 }
-    }
+
+    fun snapshot(): List<TracePoint> = points.toList()
+
+    fun clear() = points.clear()
 }

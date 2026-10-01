@@ -1,67 +1,70 @@
 package com.chrischappelear.tuner
 
 import android.Manifest
-import android.content.pm.PackageManager
+import android.content.Intent
+import android.net.Uri
 import android.os.Bundle
+import android.provider.Settings
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
-import androidx.compose.runtime.*
-import androidx.compose.ui.Modifier
-import androidx.core.content.ContextCompat
-import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.activity.viewModels
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.chrischappelear.tuner.ui.TunerScreen
 import com.chrischappelear.tuner.ui.theme.ChromaticTunerTheme
 
 class MainActivity : ComponentActivity() {
-    
-    private val requestPermissionLauncher = registerForActivityResult(
+    private val viewModel: TunerViewModel by viewModels()
+
+    /** True once the user has denied the permission in a way we can no longer re-ask. */
+    private var permanentlyDenied by mutableStateOf(false)
+
+    private val requestPermission = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
-    ) { isGranted ->
-        hasPermission = isGranted
+    ) { granted ->
+        viewModel.refreshPermission()
+        permanentlyDenied = !granted &&
+            !shouldShowRequestPermissionRationale(Manifest.permission.RECORD_AUDIO)
     }
-    
-    private var hasPermission by mutableStateOf(false)
-    
+
     override fun onCreate(savedInstanceState: Bundle?) {
+        enableEdgeToEdge()
         super.onCreate(savedInstanceState)
-        
-        checkAudioPermission()
-        
+
         setContent {
             ChromaticTunerTheme {
-                Surface(
-                    modifier = Modifier.fillMaxSize(),
-                    color = MaterialTheme.colorScheme.background
-                ) {
-                    val viewModel: TunerViewModel = viewModel()
-                    val tuningResult by viewModel.tuningResult.collectAsState()
-                    val pitchHistory by viewModel.pitchHistory.collectAsState()
-                    
-                    TunerScreen(
-                        tuningResult = tuningResult,
-                        pitchHistory = pitchHistory,
-                        hasPermission = hasPermission,
-                        onRequestPermission = {
-                            requestPermissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
-                        }
-                    )
-                }
+                // Collection stops when the activity is stopped, which releases the microphone.
+                val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+                val settings by viewModel.settings.collectAsStateWithLifecycle()
+                val hasPermission by viewModel.hasPermission.collectAsStateWithLifecycle()
+
+                TunerScreen(
+                    uiState = uiState,
+                    settings = settings,
+                    hasPermission = hasPermission,
+                    permissionPermanentlyDenied = permanentlyDenied,
+                    onRequestPermission = { requestPermission.launch(Manifest.permission.RECORD_AUDIO) },
+                    onOpenAppSettings = ::openAppSettings,
+                    onTuningSelected = viewModel::setTuning,
+                    onA4Changed = viewModel::setA4
+                )
             }
         }
     }
-    
-    private fun checkAudioPermission() {
-        hasPermission = ContextCompat.checkSelfPermission(
-            this,
-            Manifest.permission.RECORD_AUDIO
-        ) == PackageManager.PERMISSION_GRANTED
+
+    override fun onResume() {
+        super.onResume()
+        // The permission may have been granted or revoked from system settings.
+        viewModel.refreshPermission()
     }
-    
-    override fun onDestroy() {
-        super.onDestroy()
+
+    private fun openAppSettings() {
+        startActivity(
+            Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.fromParts("package", packageName, null))
+        )
     }
 }

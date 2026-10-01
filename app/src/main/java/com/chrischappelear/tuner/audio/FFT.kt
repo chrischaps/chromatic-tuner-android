@@ -1,55 +1,74 @@
 package com.chrischappelear.tuner.audio
 
-import kotlin.math.*
+import kotlin.math.PI
+import kotlin.math.cos
+import kotlin.math.sin
 
-class FFT {
-    
-    fun fft(input: DoubleArray): Array<Complex> {
-        val n = input.size
-        if (n <= 1) return input.map { Complex(it, 0.0) }.toTypedArray()
-        
-        val even = DoubleArray(n / 2)
-        val odd = DoubleArray(n / 2)
-        
-        for (i in 0 until n / 2) {
-            even[i] = input[2 * i]
-            odd[i] = input[2 * i + 1]
-        }
-        
-        val evenFft = fft(even)
-        val oddFft = fft(odd)
-        
-        val result = Array(n) { Complex(0.0, 0.0) }
-        
-        for (k in 0 until n / 2) {
-            val angle = -2.0 * PI * k / n
-            val twiddle = Complex(cos(angle), sin(angle))
-            val t = twiddle * oddFft[k]
-            
-            result[k] = evenFft[k] + t
-            result[k + n / 2] = evenFft[k] - t
-        }
-        
-        return result
+/**
+ * Iterative, in-place radix-2 FFT over separate real/imaginary arrays.
+ *
+ * Twiddle factors and the bit-reversal table are precomputed for a fixed [size],
+ * so repeated transforms allocate nothing.
+ */
+class FFT(val size: Int) {
+    init {
+        require(size >= 2 && size and (size - 1) == 0) { "FFT size must be a power of two, was $size" }
     }
-    
-    fun getMagnitudeSpectrum(fftResult: Array<Complex>): DoubleArray {
-        return fftResult.map { it.magnitude() }.toDoubleArray()
-    }
-    
-    fun findPeakFrequency(magnitudes: DoubleArray, sampleRate: Int): Double {
-        val maxIndex = magnitudes.indices.maxByOrNull { magnitudes[it] } ?: 0
-        return maxIndex * sampleRate.toDouble() / magnitudes.size
-    }
-}
 
-data class Complex(val real: Double, val imaginary: Double) {
-    operator fun plus(other: Complex) = Complex(real + other.real, imaginary + other.imaginary)
-    operator fun minus(other: Complex) = Complex(real - other.real, imaginary - other.imaginary)
-    operator fun times(other: Complex) = Complex(
-        real * other.real - imaginary * other.imaginary,
-        real * other.imaginary + imaginary * other.real
-    )
-    
-    fun magnitude() = sqrt(real * real + imaginary * imaginary)
+    private val cosTable = DoubleArray(size / 2) { cos(2.0 * PI * it / size) }
+    private val sinTable = DoubleArray(size / 2) { sin(2.0 * PI * it / size) }
+    private val bitReversed = IntArray(size).also { table ->
+        val bits = Integer.numberOfTrailingZeros(size)
+        for (i in 0 until size) {
+            table[i] = Integer.reverse(i) ushr (32 - bits)
+        }
+    }
+
+    /** Forward transform in place. */
+    fun forward(re: DoubleArray, im: DoubleArray) = transform(re, im, inverse = false)
+
+    /** Inverse transform in place, including the 1/N scale. */
+    fun inverse(re: DoubleArray, im: DoubleArray) {
+        transform(re, im, inverse = true)
+        val scale = 1.0 / size
+        for (i in 0 until size) {
+            re[i] *= scale
+            im[i] *= scale
+        }
+    }
+
+    private fun transform(re: DoubleArray, im: DoubleArray, inverse: Boolean) {
+        require(re.size == size && im.size == size)
+
+        for (i in 0 until size) {
+            val j = bitReversed[i]
+            if (j > i) {
+                val tr = re[i]; re[i] = re[j]; re[j] = tr
+                val ti = im[i]; im[i] = im[j]; im[j] = ti
+            }
+        }
+
+        val sign = if (inverse) 1.0 else -1.0
+        var half = 1
+        while (half < size) {
+            val step = size / (half * 2)
+            var start = 0
+            while (start < size) {
+                for (k in 0 until half) {
+                    val wr = cosTable[k * step]
+                    val wi = sign * sinTable[k * step]
+                    val a = start + k
+                    val b = a + half
+                    val tr = wr * re[b] - wi * im[b]
+                    val ti = wr * im[b] + wi * re[b]
+                    re[b] = re[a] - tr
+                    im[b] = im[a] - ti
+                    re[a] += tr
+                    im[a] += ti
+                }
+                start += half * 2
+            }
+            half *= 2
+        }
+    }
 }

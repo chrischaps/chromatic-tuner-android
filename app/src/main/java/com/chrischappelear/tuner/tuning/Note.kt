@@ -1,57 +1,56 @@
 package com.chrischappelear.tuner.tuning
 
-import kotlin.math.abs
 import kotlin.math.exp
 import kotlin.math.ln
 import kotlin.math.log2
-import kotlin.math.round
+import kotlin.math.roundToInt
 
-data class Note(
-    val name: String,
-    val frequency: Double,
-    val octave: Int
-) {
-    fun getDisplayName(): String = "$name$octave"
+/** A note of the equal-tempered scale, identified by its MIDI number (A4 = 69). */
+data class Note(val midi: Int) {
+    val name: String get() = NAMES[Math.floorMod(midi, 12)]
+    val octave: Int get() = Math.floorDiv(midi, 12) - 1
+
+    /** The letter alone, e.g. "C" for C♯. */
+    val letter: String get() = name.substring(0, 1)
+
+    /** "♯" or "". */
+    val accidental: String get() = name.substring(1)
+
+    val displayName: String get() = "$name$octave"
+
+    fun frequency(a4: Double = NoteMath.DEFAULT_A4): Double = NoteMath.midiToFrequency(midi.toDouble(), a4)
+
+    companion object {
+        private val NAMES = arrayOf("C", "C♯", "D", "D♯", "E", "F", "F♯", "G", "G♯", "A", "A♯", "B")
+
+        /** Parses names like "E2", "C#4" or "C♯4". */
+        fun parse(text: String): Note {
+            val normalized = text.replace('#', '♯')
+            val split = normalized.indexOfFirst { it.isDigit() || it == '-' }
+            val name = normalized.substring(0, split)
+            val octave = normalized.substring(split).toInt()
+            val index = NAMES.indexOf(name)
+            require(index >= 0) { "Unknown note name: $text" }
+            return Note((octave + 1) * 12 + index)
+        }
+    }
 }
 
-object NoteFrequencies {
-    private val noteNames = arrayOf("C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B")
-    
-    private val A4_FREQUENCY = 440.0
-    private val A4_MIDI_NUMBER = 69
-    
-    fun frequencyToMidiNumber(frequency: Double): Double {
-        if (frequency <= 0) return 0.0
-        return 12 * log2(frequency / A4_FREQUENCY) + A4_MIDI_NUMBER
-    }
-    
-    fun midiNumberToFrequency(midiNumber: Double): Double {
-        val exponent = (midiNumber - A4_MIDI_NUMBER) / 12.0
-        return A4_FREQUENCY * exp(exponent * ln(2.0))
-    }
-    
-    fun getClosestNote(frequency: Double): Note {
-        if (frequency <= 0) return Note("", 0.0, 0)
-        
-        val midiNumber = frequencyToMidiNumber(frequency)
-        val closestMidi = round(midiNumber).toInt()
-        val closestFrequency = midiNumberToFrequency(closestMidi.toDouble())
-        
-        val noteIndex = (closestMidi - 12) % 12
-        val octave = (closestMidi - 12) / 12
-        val noteName = noteNames[noteIndex]
-        
-        return Note(noteName, closestFrequency, octave)
-    }
-    
-    fun getCentsOffset(frequency: Double, targetNote: Note): Int {
-        if (frequency <= 0 || targetNote.frequency <= 0) return 0
-        
-        val cents = 1200 * log2(frequency / targetNote.frequency)
-        return cents.toInt()
-    }
-    
-    fun isInTune(centsOffset: Int, tolerance: Int = 10): Boolean {
-        return abs(centsOffset) <= tolerance
-    }
+object NoteMath {
+    const val DEFAULT_A4 = 440.0
+    private const val A4_MIDI = 69
+
+    /** Fractional MIDI number of a frequency. */
+    fun frequencyToMidi(frequency: Double, a4: Double = DEFAULT_A4): Double =
+        12 * log2(frequency / a4) + A4_MIDI
+
+    fun midiToFrequency(midi: Double, a4: Double = DEFAULT_A4): Double =
+        a4 * exp((midi - A4_MIDI) / 12.0 * ln(2.0))
+
+    fun nearestNote(frequency: Double, a4: Double = DEFAULT_A4): Note =
+        Note(frequencyToMidi(frequency, a4).roundToInt())
+
+    /** Signed distance in cents from [target] to [frequency]; positive is sharp. */
+    fun cents(frequency: Double, target: Note, a4: Double = DEFAULT_A4): Double =
+        (frequencyToMidi(frequency, a4) - target.midi) * 100
 }

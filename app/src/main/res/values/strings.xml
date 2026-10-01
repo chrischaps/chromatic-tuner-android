@@ -1,11 +1,29 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">Chromatic Tuner</string>
-    <string name="tuning">Tuning...</string>
-    <string name="microphone_permission_required">Microphone permission is required to use the tuner</string>
-    <string name="grant_permission">Grant Permission</string>
-    <string name="frequency_hz">%.1f Hz</string>
-    <string name="cents_sharp">+%d cents</string>
-    <string name="cents_flat">%d cents</string>
-    <string name="in_tune">In Tune</string>
+    <string name="wordmark">TUNER</string>
+
+    <string name="hint_play_note">play a note</string>
+    <string name="hint_play_string">play a string</string>
+    <string name="in_tune">in tune</string>
+    <string name="cents_format">%1$s¢</string>
+    <string name="tune_up">tune up</string>
+    <string name="tune_down">tune down</string>
+
+    <string name="trace_title">DRIFT</string>
+    <string name="trace_window">%1$ds</string>
+
+    <string name="a4_chip">A4 · %1$d</string>
+    <string name="settings_tuning">Tuning</string>
+    <string name="settings_reference">Reference pitch</string>
+    <string name="chromatic_description">Any note, nearest semitone</string>
+    <string name="a4_value">A4 = %1$d Hz</string>
+    <string name="a4_reset">Reset to 440</string>
+    <string name="a4_description">Match a piano, a recording, or an ensemble that tunes a little high or low.</string>
+
+    <string name="permission_title">Let me listen</string>
+    <string name="permission_body">The tuner hears your instrument through the microphone. Nothing is recorded or saved.</string>
+    <string name="permission_denied_body">Microphone access is turned off. You can allow it in the app\'s settings, then come back.</string>
+    <string name="grant_permission">Allow microphone</string>
+    <string name="open_settings">Open settings</string>
 </resources>
