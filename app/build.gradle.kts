@@ -11,7 +11,7 @@ android {
     defaultConfig {
         applicationId = "com.chrischappelear.tuner"
         minSdk = 26
-        targetSdk = 35
+        targetSdk = 36
         versionCode = 2
         versionName = "2.0"
 
@@ -21,9 +21,25 @@ android {
         }
     }
 
+    // The upload key lives outside the repo; its path and passwords come from
+    // ~/.gradle/gradle.properties. Without them, release builds are unsigned.
+    val uploadStoreFile = providers.gradleProperty("TUNER_UPLOAD_STORE_FILE").orNull
+    signingConfigs {
+        if (uploadStoreFile != null) {
+            create("release") {
+                storeFile = file(uploadStoreFile)
+                storePassword = providers.gradleProperty("TUNER_UPLOAD_STORE_PASSWORD").get()
+                keyAlias = providers.gradleProperty("TUNER_UPLOAD_KEY_ALIAS").get()
+                keyPassword = providers.gradleProperty("TUNER_UPLOAD_KEY_PASSWORD").get()
+            }
+        }
+    }
+
     buildTypes {
         release {
-            isMinifyEnabled = false
+            isMinifyEnabled = true
+            isShrinkResources = true
+            signingConfig = signingConfigs.findByName("release")
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"

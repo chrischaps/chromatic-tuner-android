@@ -10,7 +10,7 @@ This is an Android chromatic tuner app built with Kotlin and Jetpack Compose tha
 
 - **Package**: `com.chrischappelear.tuner`
 - **Min SDK**: 26 (Android 8.0) - Required for adaptive icons and modern audio APIs
-- **Target SDK**: 35
+- **Target SDK**: 36 (Play requires 36 for new apps and updates since Aug 31 2026)
 - **Compile SDK**: 36
 - **Kotlin**: 2.0.20 with Compose Compiler plugin
 - **Gradle**: 8.13
@@ -24,6 +24,7 @@ Navigate to the project root directory first:
 ./gradlew build                    # Build the entire project
 ./gradlew app:assembleDebug        # Build debug APK
 ./gradlew app:assembleRelease      # Build release APK
+./gradlew app:bundleRelease        # Build the signed AAB for Play
 ./gradlew clean                    # Clean build artifacts
 ```
 
@@ -65,6 +66,10 @@ AudioRecorder → PitchDetector → TuningProcessor → TunerViewModel → Tuner
 - **`data/`**: `SettingsRepository` (DataStore) holds the selected tuning and A4 (432–446).
 - **`ui/`**: `TunerScreen` lays out the components in `ui/components/`. Colors come from `TunerTheme.colors` (`TunerColors`, dusk/paper) rather than raw `Color` values; `TunerColors.forCents()` is the sage→amber ramp. `@Preview`s live at the bottom of `TunerScreen.kt`.
 - **Lifecycle**: the ViewModel uses `stateIn(WhileSubscribed(2000))`, and `MainActivity` collects with `collectAsStateWithLifecycle`, so the mic is held only while the screen is visible and survives rotation.
+
+## Release
+
+The store name is **Chaps Tuner** (the "Chaps" prefix is shared across Chris's published apps, with developer name `chaps.dev`). Release builds run R8 with resource shrinking. They are signed with the upload key at `~/.keystores/tuner-upload.jks`, whose path and passwords come from the `TUNER_UPLOAD_*` properties in `~/.gradle/gradle.properties`. Without those, the release build is unsigned, so never commit them. Play listing text, images and per-version changelogs live in `fastlane/metadata/android/en-US/`, and `fastlane/PLAY_CONSOLE.md` holds the Console answers and the release path. Bump `versionCode` and add `changelogs/<versionCode>.txt` for each upload. The privacy policy is `src/pages/tuner/privacy.astro` in the chaps-dev site.
 
 ## Development Notes
 

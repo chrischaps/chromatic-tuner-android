@@ -1,0 +1,28 @@
+Hold your phone near the instrument, pluck a string, and Chaps Tuner shows the note and how far off it is, to within a cent. There is no start button and nothing to set up first. It simply listens while it is on screen.
+
+A QUIET WAY TO TUNE
+An arc spans 50 cents flat to 50 cents sharp. A small glowing marker glides along it as you turn the peg, easing from amber toward sage as you get closer. When the note holds true, the letter turns pale sage, a soft halo blooms behind it, and the phone gives one gentle tick.
+
+Flat and sharp are both amber, told apart by position and the ♭ and ♯ marks, never by red and green, so the meter reads the same for colorblind players.
+
+TUNINGS
+• Chromatic: any note, to the nearest semitone
+• Guitar, standard: E A D G B E
+• Guitar, drop D: D A D G B E
+• Ukulele: G C E A
+
+In a guitar or ukulele tuning, the tuner follows the nearest string, not just the nearest note. Each string you bring into tune keeps a small sage dot, so the whole instrument fills in as you go. A string tuned a whole step low still reads as that string, so you always know which peg to turn.
+
+THE DRIFT TRACE
+A line beneath the meter shows the last eight seconds of your tuning drifting in toward the center. It is an easy way to see whether a string is settling or still creeping.
+
+REFERENCE PITCH
+Set A4 anywhere from 432 to 446 Hz to match a piano, a recording, or an ensemble that tunes a little high or low.
+
+STEADY, NOT JUMPY
+Chaps Tuner measures pitch with the McLeod Pitch Method and smooths the reading so it holds still on a sustained note but follows a turning peg without lag. Low strings read at the right octave, and the thump of a pick doesn't flash up as a note.
+
+PRIVATE BY DESIGN
+The microphone is used only to measure pitch, in memory, on your device. Nothing is recorded or saved, the app has no internet access, and there are no ads, accounts or tracking. It releases the microphone as soon as you leave.
+
+Light and dark themes, portrait and landscape, Android 8.0 and up.

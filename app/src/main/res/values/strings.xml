@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">Chromatic Tuner</string>
+    <string name="app_name">Chaps Tuner</string>
     <string name="wordmark">TUNER</string>
 
     <string name="hint_play_note">play a note</string>
