@@ -10,7 +10,7 @@ This is an Android chromatic tuner app built with Kotlin and Jetpack Compose tha
 
 - **Package**: `com.chrischappelear.tuner`
 - **Min SDK**: 26 (Android 8.0) - Required for adaptive icons and modern audio APIs
-- **Target SDK**: 34
+- **Target SDK**: 35
 - **Compile SDK**: 36
 - **Kotlin**: 2.0.20 with Compose Compiler plugin
 - **Gradle**: 8.13
@@ -45,50 +45,26 @@ Navigate to the project root directory first:
 
 ## Architecture Overview
 
-The app follows MVVM architecture with reactive state management using Kotlin coroutines and flows:
-
-### Core Modules
-
-**Audio Processing (`audio/`)**
-- `AudioRecorder`: Captures microphone input, performs real-time FFT analysis
-- `FFT`: Custom Fast Fourier Transform implementation for frequency detection
-- Uses 44.1kHz sample rate with 4096 sample buffer size
-
-**Tuning Logic (`tuning/`)**
-- `TunerEngine`: Orchestrates audio processing and note detection
-- `Note`: Musical note calculations with MIDI number conversions
-- `TuningResult`: Data class representing current tuning state
-
-**UI Layer (`ui/`)**
-- `TunerScreen`: Main Compose UI with visual tuning meter
-- `TunerViewModel`: State management between UI and tuning engine
-- `MainActivity`: Permission handling and Compose setup
-
-### Data Flow Architecture
+MVVM with a reactive pipeline; see README.md for the full walkthrough.
 
 ```
-AudioRecorder → TunerEngine → TunerViewModel → TunerScreen
-     ↓              ↓              ↓             ↓
-   FFT Analysis → Note Detection → State Flow → UI Updates
+AudioRecorder → PitchDetector → TuningProcessor → TunerViewModel → TunerScreen
 ```
 
-### Key Technical Details
+- **`audio/`**: `AudioRecorder.frames()` is a cold `Flow<PitchEstimate?>`. The mic opens on collect and is released on cancel, on one worker thread. Float PCM at 48 kHz (44.1 kHz fallback), 4096-sample window, 1024 hop, `UNPROCESSED`/`VOICE_RECOGNITION` source. `PitchDetector` is the McLeod Pitch Method (NSDF via FFT autocorrelation, 2 kHz low-pass, first key max ≥ 0.9 × highest, parabolic interpolation), with a 60–1400 Hz range. `FFT` is an in-place radix-2 transform on primitive arrays.
+- **`tuning/`**: `TuningProcessor` is pure and synchronous; call `process(estimate, nowMs)` once per frame. Pipeline:
+  - Clarity and RMS gate.
+  - Steady-onset check, then a 5-frame median.
+  - Stray-frame rejection.
+  - Note hysteresis (65¢, 3 frames).
+  - `OneEuroFilter` on cents.
+  - Lock at ±4¢ held for 400 ms.
+  - Dropout hold, then a 1.5 s fade.
 
-**Audio Processing Pipeline:**
-1. Microphone capture via `AudioRecord`
-2. Real-time FFT analysis with parabolic interpolation for precise frequency detection
-3. Note detection using equal temperament tuning (A4 = 440Hz)
-4. Cents offset calculation for tuning accuracy
-
-**Compose Integration:**
-- Uses Kotlin 2.0 Compose Compiler plugin
-- Material 3 design system with AppCompat themes
-- Custom Canvas drawing for tuning meter visualization
-- Reactive UI updates via StateFlow
-
-**Permission Requirements:**
-- `RECORD_AUDIO`: Required for microphone access
-- Runtime permission handling with proper fallback UI
+  The tunable constants are in its companion object. `Note` is identified by MIDI number, and `NoteMath` takes an `a4` parameter. `Tunings` holds the presets; with strings, the target is the nearest string.
+- **`data/`**: `SettingsRepository` (DataStore) holds the selected tuning and A4 (432–446).
+- **`ui/`**: `TunerScreen` lays out the components in `ui/components/`. Colors come from `TunerTheme.colors` (`TunerColors`, dusk/paper) rather than raw `Color` values; `TunerColors.forCents()` is the sage→amber ramp. `@Preview`s live at the bottom of `TunerScreen.kt`.
+- **Lifecycle**: the ViewModel uses `stateIn(WhileSubscribed(2000))`, and `MainActivity` collects with `collectAsStateWithLifecycle`, so the mic is held only while the screen is visible and survives rotation.
 
 ## Development Notes
 
@@ -96,4 +72,6 @@ AudioRecorder → TunerEngine → TunerViewModel → TunerScreen
 
 **Compose Imports**: Use explicit imports for layout functions rather than wildcard imports to avoid compilation issues with `weight` and other modifiers.
 
-**Audio Processing**: Frequency detection operates in 70-1200 Hz range optimized for guitar/ukulele. Uses minimum amplitude threshold of 0.001 to filter noise.
+**Testing detection changes**: Unit tests in `app/src/test` use `SignalGen` to synthesize tones and assert accuracy in cents. Run `./gradlew test` after any change to the detector or processor.
+
+**Acoustic testing**: a WAV played from the PC speakers into the device mic is a good end-to-end check. Clarity in a real room is much lower than with synthetic signals (often 0.5–0.9), which is why the gates are where they are.
