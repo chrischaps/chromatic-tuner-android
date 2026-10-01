@@ -75,6 +75,28 @@ class TuningProcessorTest {
     }
 
     @Test
+    fun transientOctaveSlipIsHeld() {
+        val p = TuningProcessor()
+        val a4 = Note(69)
+        p.feed(440.0, 30)
+        // Exactly what a click does on the device: four windows read an octave low.
+        val during = p.feed(220.0, 4, clarity = 0.85)
+        assertEquals(TunerStatus.Active, during.status)
+        assertEquals(a4, during.note)
+        assertEquals(0.0, during.cents, 0.5)
+        val after = p.feed(440.0, 10)
+        assertEquals(a4, after.note)
+        assertTrue(p.history.snapshot().all { it.cents == null || abs(it.cents!!) < 1f })
+    }
+
+    @Test
+    fun sustainedOctaveChangeIsFollowed() {
+        val p = TuningProcessor()
+        p.feed(440.0, 30)
+        assertEquals(Note(57), p.feed(220.0, 20).note)
+    }
+
+    @Test
     fun clearRetuningIsFollowed() {
         val p = TuningProcessor()
         p.feed(110.0, 30)
@@ -97,6 +119,19 @@ class TuningProcessorTest {
         p.feed(110.0, 20)
         val d3 = Note.parse("D3")
         assertEquals(d3, p.feed(d3.frequency(), 8).note)
+    }
+
+    @Test
+    fun noteSwitchNeverShowsAnOffsetAgainstTheOldNote() {
+        for (tuning in listOf(Tunings.Chromatic, Tunings.GuitarStandard)) {
+            val p = TuningProcessor(tuning)
+            p.feed(110.0, 20)
+            repeat(12) {
+                val state = p.feed(Note.parse("D3").frequency())
+                assertTrue("${tuning.id}: ${state.note} ${state.cents}", abs(state.cents) < 5)
+            }
+            assertTrue(p.history.snapshot().all { it.cents == null || abs(it.cents!!) < 5f })
+        }
     }
 
     @Test

@@ -131,7 +131,7 @@ fun Readout(state: TunerState, modifier: Modifier = Modifier) {
     val tint by animateColorAsState(
         targetValue = when {
             !active -> colors.inkMuted
-            state.locked -> colors.inTune
+            state.locked || cents == 0 -> colors.inTune
             else -> colors.forCents(state.cents.toFloat())
         },
         label = "readoutTint"

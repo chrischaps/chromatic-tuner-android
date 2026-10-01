@@ -58,6 +58,7 @@ class TuningProcessor(
     private var pendingKey: Int? = null
     private var pendingCount = 0
     private var silentFrames = 0
+    private var octaveFrames = 0
     private var lastPitchMs = 0L
     private var inTuneSinceMs: Long? = null
     private var locked = false
@@ -89,7 +90,12 @@ class TuningProcessor(
         val minClarity = if (state.status == TunerStatus.Active) SUSTAIN_CLARITY else ONSET_CLARITY
         val hasPitch = estimate != null && estimate.clarity >= minClarity && estimate.rms >= MIN_RMS
 
-        state = if (hasPitch && !isStray(estimate!!)) onPitch(estimate.frequency, nowMs) else onSilence(nowMs)
+        state = when {
+            !hasPitch -> onSilence(nowMs)
+            isOctaveSlip(estimate!!.frequency) -> state // hold the reading through it
+            isStray(estimate) -> onSilence(nowMs)
+            else -> onPitch(estimate.frequency, nowMs)
+        }
 
         history.add(
             TracePoint(
@@ -128,7 +134,10 @@ class TuningProcessor(
                     pendingKey = candidateKey
                     pendingCount = 1
                 }
-                if (pendingCount >= SWITCH_FRAMES) setTarget(candidate, candidateString)
+                // Until the switch is confirmed, hold the last reading: an offset measured
+                // against the old note (hundreds of cents) is meaningless and would flash up.
+                if (pendingCount < SWITCH_FRAMES) return state
+                setTarget(candidate, candidateString)
             }
             else -> {
                 pendingKey = null
@@ -174,6 +183,31 @@ class TuningProcessor(
                 idleState()
             }
         }
+    }
+
+    /**
+     * A brief transient (a click, a bump, string buzz) taints every analysis window that
+     * overlaps it, up to windowSize / hop = 4 frames, and can read as the octave below or
+     * above with clarity to spare. So while tracking, a jump of almost exactly an octave
+     * is held back unless it outlasts any single transient; a real octave change does.
+     */
+    private fun isOctaveSlip(frequency: Double): Boolean {
+        if (state.status != TunerStatus.Active || recent.isEmpty()) {
+            octaveFrames = 0
+            return false
+        }
+        val median = recent.sorted()[recent.size / 2]
+        val offset = abs(1200 * log2(frequency / median))
+        if (abs(offset - 1200) > OCTAVE_TOLERANCE_CENTS) {
+            octaveFrames = 0
+            return false
+        }
+        octaveFrames++
+        if (octaveFrames <= OCTAVE_CONFIRM_FRAMES) return true
+        // It persisted: this is a real change of octave, so let the median start over.
+        recent.clear()
+        octaveFrames = 0
+        return false
     }
 
     /**
@@ -255,7 +289,10 @@ class TuningProcessor(
         const val LOCK_CENTS = 4.0
         const val UNLOCK_CENTS = 8.0
         const val LOCK_HOLD_MS = 400L
-        const val DROPOUT_FRAMES = 4
+        // Both exceed the 4 frames a single transient can taint (window 4096 / hop 1024).
+        const val DROPOUT_FRAMES = 6
+        const val OCTAVE_CONFIRM_FRAMES = 6
+        const val OCTAVE_TOLERANCE_CENTS = 40.0
         const val FADE_MS = 1_500L
     }
 }
