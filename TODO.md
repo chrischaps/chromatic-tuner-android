@@ -33,6 +33,7 @@ Feature ideas for upcoming Chaps Tuner releases, roughly in the order to build t
 
 ## 4. Using the selected tuning to cope with noisy rooms
 
+- [ ] **Cheap first step: ignore readings far outside the instrument.** In a preset, every sound is measured against the nearest string, however far away it is. On Bass · Standard, a 158 Hz room sound read as "G2 +831¢". In `TuningProcessor`, treat a reading more than about a fifth (700¢) beyond the lowest or highest string as silence. Guitar has the same issue, but bass's narrow range makes it show more often.
 - [ ] When a preset is active, narrow the detector's search to about ±3 semitones around the lowest and highest strings. This rejects room noise and nearby instruments.
 - [ ] Consider weighting MPM peak choice toward periods near a string. The trade-off is that the guess about which note is playing gets stricter.
 - [ ] Add a "loud room" setting that tightens the clarity and RMS gates in `TuningProcessor`'s companion.
@@ -43,6 +44,10 @@ Feature ideas for upcoming Chaps Tuner releases, roughly in the order to build t
 - [ ] In Chromatic mode, add a practice view: a longer scrolling pitch line (30–60 s) with note gridlines, built on `PitchHistory` and `CentsTrace`.
 - [ ] Add an optional drone on a chosen note, reusing the synth from #2.
 - [ ] Make the pitch line glide between notes when you sing a scale, instead of resetting to the nearest semitone.
+
+## Polish
+
+- [ ] **The settings sheet jumps when you switch instrument chips.** The sheet is only as tall as its content, so going from Guitar (6 tunings) to Bass (2) drops it by several rows, and a tap aimed at a row can land outside the sheet and close it. Give the tuning list a minimum height equal to the longest group.
 
 ## Store and site media reshoot
 
