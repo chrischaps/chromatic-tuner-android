@@ -35,6 +35,7 @@ import com.chrischappelear.tuner.R
 import com.chrischappelear.tuner.tuning.Note
 import com.chrischappelear.tuner.tuning.TunerState
 import com.chrischappelear.tuner.tuning.TunerStatus
+import com.chrischappelear.tuner.tuning.TuningString
 import com.chrischappelear.tuner.ui.theme.TunerTheme
 import com.chrischappelear.tuner.ui.theme.TunerType
 import java.util.Locale
@@ -92,6 +93,7 @@ fun NoteGlyph(state: TunerState, modifier: Modifier = Modifier) {
             if (note != null) {
                 NoteName(
                     note = note,
+                    flats = state.tuning.flats,
                     modifier = Modifier
                         .alpha(presence)
                         .scale(swell),
@@ -103,12 +105,13 @@ fun NoteGlyph(state: TunerState, modifier: Modifier = Modifier) {
 }
 
 @Composable
-private fun NoteName(note: Note, color: Color, modifier: Modifier = Modifier) {
+private fun NoteName(note: Note, flats: Boolean, color: Color, modifier: Modifier = Modifier) {
     val colors = TunerTheme.colors
+    val spelling = note.spelled(flats)
     Row(modifier.height(IntrinsicSize.Min), verticalAlignment = Alignment.CenterVertically) {
         // A matching blank column on the left keeps the letter itself centered.
         Box(Modifier.width(34.dp))
-        Text(note.letter, style = TunerType.noteLetter, color = color)
+        Text(spelling.letter, style = TunerType.noteLetter, color = color)
         Column(
             modifier = Modifier
                 .width(34.dp)
@@ -116,8 +119,8 @@ private fun NoteName(note: Note, color: Color, modifier: Modifier = Modifier) {
                 .padding(vertical = 20.dp),
             verticalArrangement = Arrangement.SpaceBetween
         ) {
-            Text(note.accidental, style = TunerType.noteAccidental, color = color)
-            Text(note.octave.toString(), style = TunerType.noteOctave, color = colors.inkMuted)
+            Text(spelling.accidental, style = TunerType.noteAccidental, color = color)
+            Text(spelling.octave.toString(), style = TunerType.noteOctave, color = colors.inkMuted)
         }
     }
 }
@@ -141,6 +144,8 @@ fun Readout(state: TunerState, modifier: Modifier = Modifier) {
     )
 
     val turnHint = stringResource(if (cents < 0) R.string.tune_up else R.string.tune_down)
+    // A microtonal string is tuned to its note plus an offset; say so, since the glyph can't.
+    val targetLabel = stringResource(R.string.string_target, TuningString.centsLabel(state.stringCents))
 
     Column(
         modifier = modifier
@@ -162,6 +167,10 @@ fun Readout(state: TunerState, modifier: Modifier = Modifier) {
         )
         Text(
             text = if (!active) " " else buildString {
+                if (state.stringCents != 0) {
+                    append(targetLabel)
+                    append("  ·  ")
+                }
                 append(String.format(Locale.getDefault(), "%.1f Hz", state.frequency))
                 if (!state.locked && abs(cents) >= 2) {
                     append("  ·  ")

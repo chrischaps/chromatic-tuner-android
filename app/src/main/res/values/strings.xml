@@ -9,6 +9,7 @@
     <string name="cents_format">%1$s¢</string>
     <string name="tune_up">tune up</string>
     <string name="tune_down">tune down</string>
+    <string name="string_target">target %1$s</string>
 
     <string name="trace_title">DRIFT</string>
     <string name="trace_window">%1$ds</string>
@@ -17,6 +18,26 @@
     <string name="settings_tuning">Tuning</string>
     <string name="settings_reference">Reference pitch</string>
     <string name="chromatic_description">Any note, nearest semitone</string>
+    <string name="edit">Edit</string>
+    <string name="new_tuning">New tuning</string>
+    <string name="new_tuning_description">Any instrument, up to eight strings</string>
+
+    <string name="editor_title_new">New tuning</string>
+    <string name="editor_title_edit">Edit tuning</string>
+    <string name="editor_default_name">Custom tuning</string>
+    <string name="editor_strings">Strings</string>
+    <string name="editor_add_string">Add string</string>
+    <string name="editor_sharps">Sharps</string>
+    <string name="editor_flats">Flats</string>
+    <string name="editor_step_down">Lower string %1$d a semitone</string>
+    <string name="editor_step_up">Raise string %1$d a semitone</string>
+    <string name="editor_fine_tune">Fine-tune string %1$d in cents</string>
+    <string name="editor_cent_down">Lower string %1$d by one cent</string>
+    <string name="editor_cent_up">Raise string %1$d by one cent</string>
+    <string name="editor_remove_string">Remove string %1$d</string>
+    <string name="editor_save">Save</string>
+    <string name="editor_cancel">Cancel</string>
+    <string name="editor_delete">Delete</string>
     <string name="a4_value">A4 = %1$d Hz</string>
     <string name="a4_reset">Reset to 440</string>
     <string name="a4_description">Match a piano, a recording, or an ensemble that tunes a little high or low.</string>

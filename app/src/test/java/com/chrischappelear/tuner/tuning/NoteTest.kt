@@ -20,6 +20,29 @@ class NoteTest {
     }
 
     @Test
+    fun flatsParseToTheSameNoteAsSharps() {
+        assertEquals(Note.parse("A#3"), Note.parse("Bb3"))
+        assertEquals(Note.parse("D♯2"), Note.parse("E♭2"))
+        assertEquals(Note.parse("B3"), Note.parse("Cb4"))
+        assertEquals(Note.parse("F4"), Note.parse("E#4"))
+    }
+
+    @Test
+    fun spellingFollowsThePreference() {
+        val note = Note.parse("Eb2")
+        assertEquals("D♯2", note.spelled(flats = false).displayName)
+        assertEquals("E♭2", note.spelled(flats = true).displayName)
+        assertEquals("E", note.spelled(flats = true).letter)
+        assertEquals("♭", note.spelled(flats = true).accidental)
+        assertEquals("A2", Note.parse("A2").spelled(flats = true).displayName)
+    }
+
+    @Test(expected = IllegalArgumentException::class)
+    fun unknownLetterIsRejected() {
+        Note.parse("H2")
+    }
+
+    @Test
     fun frequencies() {
         assertEquals(440.0, Note(69).frequency(), 1e-9)
         assertEquals(82.4069, Note(40).frequency(), 1e-3)

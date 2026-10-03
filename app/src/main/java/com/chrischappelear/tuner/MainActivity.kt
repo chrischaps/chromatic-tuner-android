@@ -50,7 +50,9 @@ class MainActivity : ComponentActivity() {
                     onRequestPermission = { requestPermission.launch(Manifest.permission.RECORD_AUDIO) },
                     onOpenAppSettings = ::openAppSettings,
                     onTuningSelected = viewModel::setTuning,
-                    onA4Changed = viewModel::setA4
+                    onA4Changed = viewModel::setA4,
+                    onSaveCustomTuning = viewModel::saveCustomTuning,
+                    onDeleteCustomTuning = viewModel::deleteCustomTuning
                 )
             }
         }

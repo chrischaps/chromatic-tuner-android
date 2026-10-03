@@ -22,18 +22,16 @@ import kotlinx.coroutines.isActive
  *
  * The microphone is opened when collection starts and released when it stops, all
  * on the same worker thread, so the recording's lifetime is exactly the collector's.
- * Analysis uses a sliding [windowSize] window advanced by [hopSize] samples, giving
- * roughly 47 readings per second at 48 kHz. A null reading means no clear pitch.
+ * Analysis uses a sliding window advanced by a hop, both set by the [CaptureProfile].
+ * A null reading means no clear pitch.
  */
-class AudioRecorder(
-    private val context: Context,
-    private val windowSize: Int = 4096,
-    private val hopSize: Int = 1024
-) {
-    fun frames(): Flow<PitchEstimate?> = flow {
-        val config = openRecord() ?: return@flow
+class AudioRecorder(private val context: Context) {
+    fun frames(profile: CaptureProfile): Flow<PitchEstimate?> = flow {
+        val windowSize = profile.windowSize
+        val hopSize = profile.hopSize
+        val config = openRecord(windowSize) ?: return@flow
         val (record, sampleRate) = config
-        val detector = PitchDetector(windowSize)
+        val detector = PitchDetector(windowSize, profile.minFrequency, profile.maxFrequency)
         val window = FloatArray(windowSize)
         val hop = FloatArray(hopSize)
         var filled = 0
@@ -64,7 +62,7 @@ class AudioRecorder(
     }.flowOn(Dispatchers.IO)
 
     @SuppressLint("MissingPermission") // checked explicitly below
-    private fun openRecord(): Pair<AudioRecord, Int>? {
+    private fun openRecord(windowSize: Int): Pair<AudioRecord, Int>? {
         if (ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO)
             != PackageManager.PERMISSION_GRANTED
         ) return null

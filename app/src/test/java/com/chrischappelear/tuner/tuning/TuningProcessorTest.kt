@@ -28,6 +28,40 @@ class TuningProcessorTest {
     private val a2 = Note.parse("A2")
 
     @Test
+    fun microtonalStringReadsInTuneAtItsOffset() {
+        val e4 = Note.parse("E4")
+        val justThird = Tunings.custom(
+            "custom_j", "Just", listOf(TuningString(Note.parse("C4")), TuningString(e4, cents = -14)), flats = false
+        )
+        val p = TuningProcessor(justThird)
+        // Exactly 14 cents below equal-tempered E4 is in tune with this string.
+        val atTarget = p.feed(detuned(e4, -14.0), 40)
+        assertEquals(1, atTarget.stringIndex)
+        assertEquals(-14, atTarget.stringCents)
+        assertEquals(0.0, atTarget.cents, 0.2)
+        assertTrue(atTarget.locked)
+        // Equal-tempered E4 is then 14 cents sharp of it.
+        assertEquals(14.0, p.feed(e4.frequency(), 60).cents, 0.3)
+    }
+
+    @Test
+    fun bassTuningTracksItsLowString() {
+        // The Low profile reads about every 43 ms.
+        val p = TuningProcessor(Tunings.BassStandard)
+        val e1 = Note.parse("E1")
+        var state = TunerState()
+        repeat(30) {
+            now += 43
+            state = p.process(PitchEstimate(detuned(e1, -2.0), clarity = 0.95, rms = 0.02), now)
+        }
+        assertEquals(TunerStatus.Active, state.status)
+        assertEquals(0, state.stringIndex)
+        assertEquals(e1, state.note)
+        assertTrue(state.locked)
+        assertEquals(setOf(0), state.tunedStrings)
+    }
+
+    @Test
     fun startsIdleAndWaitsForOnset() {
         val p = TuningProcessor()
         assertEquals(TunerStatus.Idle, p.feed(null, 5).status)

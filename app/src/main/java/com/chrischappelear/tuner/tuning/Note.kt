@@ -7,31 +7,43 @@ import kotlin.math.roundToInt
 
 /** A note of the equal-tempered scale, identified by its MIDI number (A4 = 69). */
 data class Note(val midi: Int) {
-    val name: String get() = NAMES[Math.floorMod(midi, 12)]
     val octave: Int get() = Math.floorDiv(midi, 12) - 1
 
-    /** The letter alone, e.g. "C" for C♯. */
-    val letter: String get() = name.substring(0, 1)
+    /** Spelled with sharps, e.g. "C♯4". */
+    val displayName: String get() = spelled(flats = false).displayName
 
-    /** "♯" or "". */
-    val accidental: String get() = name.substring(1)
-
-    val displayName: String get() = "$name$octave"
+    /** How this note is written, with sharps (C♯) or flats (D♭). */
+    fun spelled(flats: Boolean): Spelling {
+        val name = (if (flats) FLAT_NAMES else SHARP_NAMES)[Math.floorMod(midi, 12)]
+        return Spelling(letter = name.substring(0, 1), accidental = name.substring(1), octave = octave)
+    }
 
     fun frequency(a4: Double = NoteMath.DEFAULT_A4): Double = NoteMath.midiToFrequency(midi.toDouble(), a4)
 
-    companion object {
-        private val NAMES = arrayOf("C", "C♯", "D", "D♯", "E", "F", "F♯", "G", "G♯", "A", "A♯", "B")
+    /** A written note: [letter] alone, [accidental] "♯", "♭" or "". */
+    data class Spelling(val letter: String, val accidental: String, val octave: Int) {
+        val name: String get() = letter + accidental
+        val displayName: String get() = "$name$octave"
+    }
 
-        /** Parses names like "E2", "C#4" or "C♯4". */
+    companion object {
+        private val SHARP_NAMES = arrayOf("C", "C♯", "D", "D♯", "E", "F", "F♯", "G", "G♯", "A", "A♯", "B")
+        private val FLAT_NAMES = arrayOf("C", "D♭", "D", "E♭", "E", "F", "G♭", "G", "A♭", "A", "B♭", "B")
+        private const val LETTERS = "C_D_EF_G_A_B"
+
+        /** Parses names like "E2", "C#4", "C♯4", "Bb3" or "E♭2". */
         fun parse(text: String): Note {
-            val normalized = text.replace('#', '♯')
-            val split = normalized.indexOfFirst { it.isDigit() || it == '-' }
-            val name = normalized.substring(0, split)
-            val octave = normalized.substring(split).toInt()
-            val index = NAMES.indexOf(name)
-            require(index >= 0) { "Unknown note name: $text" }
-            return Note((octave + 1) * 12 + index)
+            require(text.isNotEmpty()) { "Empty note name" }
+            val semitone = LETTERS.indexOf(text[0].uppercaseChar())
+            require(semitone >= 0 && text[0] != '_') { "Unknown note name: $text" }
+            val accidental = when (text.getOrNull(1)) {
+                '#', '♯' -> 1
+                'b', '♭' -> -1
+                else -> 0
+            }
+            val octave = text.substring(if (accidental == 0) 1 else 2).toIntOrNull()
+                ?: throw IllegalArgumentException("Unknown note name: $text")
+            return Note((octave + 1) * 12 + semitone + accidental)
         }
     }
 }

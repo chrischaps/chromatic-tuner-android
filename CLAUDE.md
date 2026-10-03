@@ -52,7 +52,7 @@ MVVM with a reactive pipeline; see README.md for the full walkthrough.
 AudioRecorder → PitchDetector → TuningProcessor → TunerViewModel → TunerScreen
 ```
 
-- **`audio/`**: `AudioRecorder.frames()` is a cold `Flow<PitchEstimate?>`. The mic opens on collect and is released on cancel, on one worker thread. Float PCM at 48 kHz (44.1 kHz fallback), 4096-sample window, 1024 hop, `UNPROCESSED`/`VOICE_RECOGNITION` source. `PitchDetector` is the McLeod Pitch Method (NSDF via FFT autocorrelation, 2 kHz low-pass, first key max ≥ 0.9 × highest, parabolic interpolation), with a 60–1400 Hz range. `FFT` is an in-place radix-2 transform on primitive arrays.
+- **`audio/`**: `AudioRecorder.frames(profile)` is a cold `Flow<PitchEstimate?>`. The mic opens on collect and is released on cancel, on one worker thread. Float PCM at 48 kHz (44.1 kHz fallback), `UNPROCESSED`/`VOICE_RECOGNITION` source. `CaptureProfile` sets the window, hop and range: `Standard` is 4096 / 1024 / 60–1400 Hz, and `Low` is 8192 / 2048 / 28–1400 Hz for tunings whose lowest string is ≤ B1. Every profile keeps window/hop = 4, which the processor's frame counts rely on. `PitchDetector` is the McLeod Pitch Method (NSDF via FFT autocorrelation, 2 kHz low-pass, first key max ≥ 0.9 × highest, parabolic interpolation). `FFT` is an in-place radix-2 transform on primitive arrays.
 - **`tuning/`**: `TuningProcessor` is pure and synchronous; call `process(estimate, nowMs)` once per frame. Pipeline:
   - Clarity and RMS gate.
   - Steady-onset check, then a 5-frame median.
@@ -62,10 +62,10 @@ AudioRecorder → PitchDetector → TuningProcessor → TunerViewModel → Tuner
   - Lock at ±4¢ held for 400 ms.
   - Dropout hold, then a 1.5 s fade.
 
-  The tunable constants are in its companion object. `Note` is identified by MIDI number, and `NoteMath` takes an `a4` parameter. `Tunings` holds the presets; with strings, the target is the nearest string.
-- **`data/`**: `SettingsRepository` (DataStore) holds the selected tuning and A4 (432–446).
+  The tunable constants are in its companion object. `Note` is identified by MIDI number; `Note.spelled(flats)` gives the written name, and each `Tuning` chooses sharps or flats. `NoteMath` takes an `a4` parameter. `Tunings` holds the presets in `TuningGroup`s. A `Tuning`'s strings are `TuningString`s: a `Note` plus a microtonal `cents` offset (±50, custom tunings only), whose fractional `midi` is the pitch tuned to. With strings, the target is the nearest string, and `TunerState.stringCents` carries the offset to the UI. Custom tunings are `TuningGroup.Custom`, stored as text via `TuningCodec`.
+- **`data/`**: `SettingsRepository` (DataStore) holds the selected tuning, A4 (432–446) and custom tunings. The app is pre-production, so ids and keys can change without migrations.
 - **`ui/`**: `TunerScreen` lays out the components in `ui/components/`. Colors come from `TunerTheme.colors` (`TunerColors`, dusk/paper) rather than raw `Color` values; `TunerColors.forCents()` is the sage→amber ramp. `@Preview`s live at the bottom of `TunerScreen.kt`.
-- **Lifecycle**: the ViewModel uses `stateIn(WhileSubscribed(2000))`, and `MainActivity` collects with `collectAsStateWithLifecycle`, so the mic is held only while the screen is visible and survives rotation.
+- **Lifecycle**: the ViewModel uses `stateIn(WhileSubscribed(2000))`, and `MainActivity` collects with `collectAsStateWithLifecycle`, so the mic is held only while the screen is visible and survives rotation. The capture profile comes from the repository flow, so a change between bass and other tunings reopens the mic.
 
 ## Release
 

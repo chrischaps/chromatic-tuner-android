@@ -7,11 +7,14 @@ Flat and sharp are both amber, told apart by position and the ♭ and ♯ marks,
 
 TUNINGS
 • Chromatic: any note, to the nearest semitone
-• Guitar, standard: E A D G B E
-• Guitar, drop D: D A D G B E
-• Ukulele: G C E A
+• Guitar: standard, drop D, half-step down, DADGAD, open G, open D
+• Bass: 4-string and 5-string, down to low B
+• Ukulele: standard, low G, baritone
+• Violin, viola, cello and mandolin
+• Banjo: open G
+• Your own: build a tuning for any instrument, up to eight strings, and nudge any string by cents for just intonation or quarter-tones
 
-In a guitar or ukulele tuning, the tuner follows the nearest string, not just the nearest note. Each string you bring into tune keeps a small sage dot, so the whole instrument fills in as you go. A string tuned a whole step low still reads as that string, so you always know which peg to turn.
+In an instrument tuning, the tuner follows the nearest string, not just the nearest note. Each string you bring into tune keeps a small sage dot, so the whole instrument fills in as you go. A string tuned a whole step low still reads as that string, so you always know which peg to turn.
 
 THE DRIFT TRACE
 A line beneath the meter shows the last eight seconds of your tuning drifting in toward the center. It is an easy way to see whether a string is settling or still creeping.

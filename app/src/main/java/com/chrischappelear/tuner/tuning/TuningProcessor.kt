@@ -28,6 +28,8 @@ data class TunerState(
     val lockCount: Int = 0,
     /** Index into [Tuning.strings] of the string being tuned, in a preset. */
     val stringIndex: Int? = null,
+    /** That string's microtonal offset from [note]; [cents] is measured from note plus this. */
+    val stringCents: Int = 0,
     /** Strings that have reached a lock since the tuning was chosen. */
     val tunedStrings: Set<Int> = emptySet(),
     val tuning: Tuning = Tunings.Chromatic,
@@ -55,6 +57,8 @@ class TuningProcessor(
 
     private var target: Note? = null
     private var targetString: Int? = null
+    /** The pitch tuned to: [target], plus the string's microtonal offset. */
+    private var targetMidi = 0.0
     private var pendingKey: Int? = null
     private var pendingCount = 0
     private var silentFrames = 0
@@ -121,7 +125,7 @@ class TuningProcessor(
         val midi = NoteMath.frequencyToMidi(smoothedFrequency, a4)
 
         val candidateString = if (tuning.isChromatic) null else tuning.nearestString(midi)
-        val candidate = candidateString?.let { tuning.strings[it] } ?: Note(midi.roundToInt())
+        val candidate = candidateString?.let { tuning.strings[it].note } ?: Note(midi.roundToInt())
         val candidateKey = candidateString ?: candidate.midi
         val current = target
 
@@ -129,7 +133,7 @@ class TuningProcessor(
             current == null || state.status != TunerStatus.Active -> {
                 if (candidate != current || candidateString != targetString) setTarget(candidate, candidateString)
             }
-            candidateKey != (targetString ?: current.midi) && abs(midi - current.midi) * 100 > SWITCH_CENTS -> {
+            candidateKey != (targetString ?: current.midi) && abs(midi - targetMidi) * 100 > SWITCH_CENTS -> {
                 if (candidateKey == pendingKey) pendingCount++ else {
                     pendingKey = candidateKey
                     pendingCount = 1
@@ -146,7 +150,7 @@ class TuningProcessor(
         }
 
         val note = target!!
-        val cents = filter.filter((midi - note.midi) * 100, nowMs)
+        val cents = filter.filter((midi - targetMidi) * 100, nowMs)
         updateLock(cents, nowMs)
 
         return TunerState(
@@ -157,6 +161,7 @@ class TuningProcessor(
             locked = locked,
             lockCount = lockCount,
             stringIndex = targetString,
+            stringCents = targetString?.let { tuning.strings[it].cents } ?: 0,
             tunedStrings = tunedStrings,
             tuning = tuning,
             a4 = a4
@@ -187,7 +192,7 @@ class TuningProcessor(
 
     /**
      * A brief transient (a click, a bump, string buzz) taints every analysis window that
-     * overlaps it, up to windowSize / hop = 4 frames, and can read as the octave below or
+     * overlaps it, up to window / hop = 4 frames, and can read as the octave below or
      * above with clarity to spare. So while tracking, a jump of almost exactly an octave
      * is held back unless it outlasts any single transient; a real octave change does.
      */
@@ -251,6 +256,7 @@ class TuningProcessor(
     private fun setTarget(note: Note, stringIndex: Int?) {
         target = note
         targetString = stringIndex
+        targetMidi = stringIndex?.let { tuning.strings[it].midi } ?: note.midi.toDouble()
         pendingKey = null
         pendingCount = 0
         inTuneSinceMs = null
@@ -289,7 +295,7 @@ class TuningProcessor(
         const val LOCK_CENTS = 4.0
         const val UNLOCK_CENTS = 8.0
         const val LOCK_HOLD_MS = 400L
-        // Both exceed the 4 frames a single transient can taint (window 4096 / hop 1024).
+        // Both exceed the 4 frames a single transient can taint (window / hop in every CaptureProfile).
         const val DROPOUT_FRAMES = 6
         const val OCTAVE_CONFIRM_FRAMES = 6
         const val OCTAVE_TOLERANCE_CENTS = 40.0

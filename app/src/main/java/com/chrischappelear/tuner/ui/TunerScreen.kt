@@ -52,11 +52,14 @@ import com.chrischappelear.tuner.tuning.TracePoint
 import com.chrischappelear.tuner.tuning.TunerState
 import com.chrischappelear.tuner.tuning.TunerStatus
 import com.chrischappelear.tuner.tuning.Tuning
+import com.chrischappelear.tuner.tuning.TuningString
 import com.chrischappelear.tuner.tuning.Tunings
 import com.chrischappelear.tuner.ui.components.CentsTrace
+import com.chrischappelear.tuner.ui.components.CustomTuningCard
 import com.chrischappelear.tuner.ui.components.NoteGlyph
 import com.chrischappelear.tuner.ui.components.PermissionScreen
 import com.chrischappelear.tuner.ui.components.Readout
+import com.chrischappelear.tuner.ui.components.SettingsContent
 import com.chrischappelear.tuner.ui.components.SettingsSheet
 import com.chrischappelear.tuner.ui.components.StringRow
 import com.chrischappelear.tuner.ui.components.TuningMeter
@@ -75,7 +78,9 @@ fun TunerScreen(
     onRequestPermission: () -> Unit,
     onOpenAppSettings: () -> Unit,
     onTuningSelected: (Tuning) -> Unit,
-    onA4Changed: (Double) -> Unit
+    onA4Changed: (Double) -> Unit,
+    onSaveCustomTuning: (Tuning) -> Unit,
+    onDeleteCustomTuning: (Tuning) -> Unit
 ) {
     val colors = TunerTheme.colors
     Box(
@@ -103,7 +108,7 @@ fun TunerScreen(
                 onOpenSettings = onOpenAppSettings
             )
         } else {
-            TunerContent(uiState, settings, onTuningSelected, onA4Changed)
+            TunerContent(uiState, settings, onTuningSelected, onA4Changed, onSaveCustomTuning, onDeleteCustomTuning)
         }
     }
 }
@@ -113,7 +118,9 @@ private fun TunerContent(
     uiState: TunerUiState,
     settings: TunerSettings,
     onTuningSelected: (Tuning) -> Unit,
-    onA4Changed: (Double) -> Unit
+    onA4Changed: (Double) -> Unit,
+    onSaveCustomTuning: (Tuning) -> Unit,
+    onDeleteCustomTuning: (Tuning) -> Unit
 ) {
     val state = uiState.tuner
     var showSettings by rememberSaveable { mutableStateOf(false) }
@@ -132,7 +139,7 @@ private fun TunerContent(
                     Spacer(Modifier.width(24.dp))
                     Column(Modifier.weight(1f), verticalArrangement = Arrangement.Center) {
                         StringRow(state, Modifier.padding(bottom = 16.dp))
-                        CentsTrace(uiState.history, height = 88.dp)
+                        CentsTrace(uiState.history, flats = state.tuning.flats, height = 88.dp)
                     }
                 }
                 Spacer(Modifier.height(12.dp))
@@ -142,7 +149,7 @@ private fun TunerContent(
                 Spacer(Modifier.height(20.dp))
                 StringRow(state)
                 Spacer(Modifier.weight(1f))
-                CentsTrace(uiState.history, Modifier.padding(bottom = 16.dp))
+                CentsTrace(uiState.history, Modifier.padding(bottom = 16.dp), flats = state.tuning.flats)
             }
         }
     }
@@ -152,6 +159,8 @@ private fun TunerContent(
             settings = settings,
             onTuningSelected = onTuningSelected,
             onA4Changed = onA4Changed,
+            onSaveCustomTuning = onSaveCustomTuning,
+            onDeleteCustomTuning = onDeleteCustomTuning,
             onDismiss = { showSettings = false }
         )
     }
@@ -276,7 +285,9 @@ private fun Preview(uiState: TunerUiState, darkTheme: Boolean = true) {
             onRequestPermission = {},
             onOpenAppSettings = {},
             onTuningSelected = {},
-            onA4Changed = {}
+            onA4Changed = {},
+            onSaveCustomTuning = {},
+            onDeleteCustomTuning = {}
         )
     }
 }
@@ -300,5 +311,65 @@ private fun IdlePreview() = Preview(TunerUiState())
 @Preview(name = "Landscape", widthDp = 844, heightDp = 390, uiMode = Configuration.UI_MODE_NIGHT_YES)
 @Composable
 private fun LandscapePreview() = Preview(previewState(-7.0))
+
+@Preview(name = "Half-step down", widthDp = 390, heightDp = 844)
+@Composable
+private fun FlatsPreview() = Preview(
+    previewState(-9.0).let { ui ->
+        ui.copy(tuner = ui.tuner.copy(note = Note.parse("Ab2"), tuning = Tunings.GuitarHalfStepDown))
+    }
+)
+
+// Open C with its third lowered toward just intonation.
+private val previewCustom = Tunings.custom(
+    "custom_1", "Open C, just third",
+    "C2 G2 C3 G3 C4 E4".split(' ').map { TuningString(Note.parse(it), if (it == "E4") -14 else 0) },
+    flats = false
+)
+
+@Composable
+private fun SheetPreview(settings: TunerSettings, darkTheme: Boolean) {
+    ChromaticTunerTheme(darkTheme = darkTheme) {
+        Box(Modifier.background(TunerTheme.colors.surface).padding(top = 16.dp)) {
+            SettingsContent(settings, onTuningSelected = {}, onA4Changed = {}, onEditTuning = {}, onNewTuning = {})
+        }
+    }
+}
+
+@Preview(name = "Sheet · bass", widthDp = 390, heightDp = 700)
+@Composable
+private fun SheetBassPreview() = SheetPreview(TunerSettings(tuning = Tunings.BassFiveString), darkTheme = true)
+
+@Preview(name = "Sheet · custom · light", widthDp = 390, heightDp = 700)
+@Composable
+private fun SheetCustomPreview() = SheetPreview(
+    TunerSettings(tuning = previewCustom, customTunings = listOf(previewCustom)),
+    darkTheme = false
+)
+
+@Composable
+private fun EditorPreview(darkTheme: Boolean) {
+    ChromaticTunerTheme(darkTheme = darkTheme) {
+        Box(Modifier.background(TunerTheme.colors.background)) {
+            CustomTuningCard(
+                draft = previewCustom,
+                isNew = true,
+                a4 = 440.0,
+                onDraftChanged = {},
+                onSave = {},
+                onDelete = {},
+                onDismiss = {}
+            )
+        }
+    }
+}
+
+@Preview(name = "Editor", widthDp = 390, heightDp = 760)
+@Composable
+private fun EditorDarkPreview() = EditorPreview(darkTheme = true)
+
+@Preview(name = "Editor · light", widthDp = 390, heightDp = 760)
+@Composable
+private fun EditorLightPreview() = EditorPreview(darkTheme = false)
 
 // endregion

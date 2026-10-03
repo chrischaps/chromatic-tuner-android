@@ -82,6 +82,51 @@ class PitchDetectorTest {
         }
     }
 
+    // Bass: B0, E1, A1, D2, G2, read with the Low capture profile.
+    private val low = CaptureProfile.Low
+    private val lowDetector = PitchDetector(low.windowSize, low.minFrequency, low.maxFrequency)
+    private val bassTargets = listOf(23, 28, 33, 38, 43).map(::midi)
+
+    private fun assertLowWithinCents(expected: Double, signal: FloatArray, tolerance: Double, rate: Int = sampleRate) {
+        val estimate = lowDetector.detect(signal, rate)
+        assertNotNull("no pitch found for $expected Hz", estimate)
+        val error = cents(estimate!!.frequency, expected)
+        assertTrue(
+            "expected %.2f Hz, got %.3f Hz (%.2f cents)".format(expected, estimate.frequency, error),
+            abs(error) <= tolerance
+        )
+    }
+
+    @Test
+    fun bassSinesAreAccurateToOneCent() {
+        for (f in bassTargets) {
+            assertLowWithinCents(f, SignalGen.sine(f, sampleRate, low.windowSize), 1.0)
+            assertLowWithinCents(f, SignalGen.sine(f, 44_100, low.windowSize), 1.0, rate = 44_100)
+        }
+    }
+
+    @Test
+    fun bassPlucksAreAccurateToOneCent() {
+        for (f in bassTargets) assertLowWithinCents(f, SignalGen.pluck(f, sampleRate, low.windowSize), 1.0)
+    }
+
+    @Test
+    fun bassWithoutItsFundamentalDoesNotJumpAnOctave() {
+        // A phone microphone barely hears 31-41 Hz, so the fundamental may be all but gone.
+        for (f in listOf(midi(23), midi(28))) {
+            assertLowWithinCents(f, SignalGen.pluck(f, sampleRate, low.windowSize, harmonics = 2..8), 1.0)
+        }
+    }
+
+    @Test
+    fun noisyBassStaysWithinThreeCents() {
+        for (f in bassTargets) {
+            val tone = SignalGen.pluck(f, sampleRate, low.windowSize)
+            val noise = SignalGen.noise(low.windowSize, SignalGen.rms(tone) / Math.sqrt(10.0), seed = f.toLong())
+            assertLowWithinCents(f, tone + noise, 3.0)
+        }
+    }
+
     @Test
     fun silenceReturnsNull() {
         assertEquals(null, detector.detect(FloatArray(n), sampleRate))

@@ -44,6 +44,7 @@ private const val TRACE_RANGE = 50f
 fun CentsTrace(
     points: List<TracePoint>,
     modifier: Modifier = Modifier,
+    flats: Boolean = false,
     durationMs: Long = 8_000L,
     height: Dp = 112.dp
 ) {
@@ -121,7 +122,7 @@ fun CentsTrace(
                 // Label the start of each note.
                 val note = point.note
                 if (note != null && previous?.note != note) {
-                    val layout = measurer.measure(note.displayName, labelStyle)
+                    val layout = measurer.measure(note.spelled(flats).displayName, labelStyle)
                     val ly = (y(cents) - layout.size.height - 4.dp.toPx())
                         .coerceIn(0f, size.height - layout.size.height)
                     drawText(layout, topLeft = Offset(px + 4.dp.toPx(), ly), alpha = fade)
