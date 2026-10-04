@@ -1,5 +1,7 @@
 Hold your phone near the instrument, pluck a string, and Chaps Tuner shows the note and how far off it is, to within a cent. There is no start button and nothing to set up first. It simply listens while it is on screen.
 
+Every feature is free. There are no ads, no in-app purchases, no subscription and no account, so nothing stands between you and a tuned string.
+
 A QUIET WAY TO TUNE
 An arc spans 50 cents flat to 50 cents sharp. A small glowing marker glides along it as you turn the peg, easing from amber toward sage as you get closer. When the note holds true, the letter turns pale sage, a soft halo blooms behind it, and the phone gives one gentle tick.
 
@@ -22,8 +24,11 @@ A line beneath the meter shows the last eight seconds of your tuning drifting in
 REFERENCE TONES
 Tap any string to hear it, plucked like a real string rather than a flat beep, and in tune to within half a cent. Tune by ear against it, or check a note you can't quite hear. In chromatic mode, pick any note from E1 to C6. The tuner stops listening while the tone rings, so it never tunes to itself.
 
+PITCH PRACTICE
+For singers, fretless players and violinists. In chromatic mode, switch to Practice and your pitch draws itself across a piano roll, half a minute at a time. The line glides between notes as you sing a scale: sage when you land on a note, amber in between. Tap the note for a drone, a slow cycle of plucked strings like a tanpura, and sing or play against it. The tuner hears past its own drone, so your line keeps drawing while it plays.
+
 REFERENCE PITCH
-Set A4 anywhere from 432 to 446 Hz to match a piano, a recording, or an ensemble that tunes a little high or low. Reference tones follow it too.
+Set A4 anywhere from 432 to 446 Hz to match a piano, a recording, or an ensemble that tunes a little high or low. Reference tones and the drone follow it too.
 
 STEADY, NOT JUMPY
 Chaps Tuner measures pitch with the McLeod Pitch Method and smooths the reading so it holds still on a sustained note but follows a turning peg without lag. Low strings read at the right octave, and the thump of a pick doesn't flash up as a note.

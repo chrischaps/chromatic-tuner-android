@@ -15,7 +15,7 @@ All apps → Create app:
 
 | Field | Answer |
 |---|---|
-| App name | Chaps Tuner: Guitar & Ukulele |
+| App name | Chaps Tuner: Guitar, Bass, Uke |
 | Default language | English (United States) |
 | App or game | App |
 | Free or paid | Free (this can't be changed to paid later) |
@@ -77,13 +77,13 @@ If Play pushes back on the mic, the fallback answer is: collected = No; processe
 
 1. **Internal testing** (Test and release → Testing → Internal testing):
    - Create a release and upload the `.aab`. Accept **Play App Signing** when asked.
-   - Release notes: `changelogs/2.txt`.
+   - Release notes: `changelogs/1.txt`.
    - Add yourself as a tester, install it from the opt-in link, and check the tuner works.
    - Check the **pre-launch report** a few hours later.
 2. **Closed testing**:
    - Create a track (for example "Friends") and promote the same release.
    - Add testers as an email list or a Google Group. **Aim for 15+** so that dropping below 12 doesn't reset the clock.
-   - Send each tester the opt-in link. They must accept *and* install, and stay opted in.
+   - Send each tester the opt-in link. Ready-to-send messages are in `TESTER_INVITE.md`. They must accept *and* install, and stay opted in.
    - Countries: all.
 3. **During the 14 days**:
    - Ask testers to actually tune something and send a line of feedback.
@@ -93,7 +93,7 @@ If Play pushes back on the mic, the fallback answer is: collected = No; processe
    - How you recruited testers (friends, family, musicians you know).
    - How engaged they were and what feedback you got.
    - What you changed in response.
-   - Who the app is for (guitar and ukulele players, beginners through gigging musicians) and why it's ready.
+   - Who the app is for (guitar, bass, ukulele and string players, and singers, from beginners to gigging musicians) and why it's ready.
 5. **Production**: create a release from the tested bundle. Countries: all. Optionally do a staged rollout (20% → 100%). Review usually takes a few days.
 
 ## Each later update

@@ -2,7 +2,7 @@
 
 Feature ideas for upcoming Chaps Tuner releases, roughly in the order to build them. Items 1 and 2 are small and the most requested. Item 4 is the biggest quality-of-life win. Items 3 and 5 are what would set the app apart in the store.
 
-## 1. More tunings, and a bass mode ✅ (v2.1, versionCode 3; tested on a real bass)
+## 1. More tunings, and a bass mode ✅ (in 1.0; tested on a real bass)
 
 - [x] More presets in `Tunings.kt`:
   - Guitar: half-step down, DADGAD, Open G, Open D
@@ -58,7 +58,7 @@ Feature ideas for upcoming Chaps Tuner releases, roughly in the order to build t
 
 Do this once the next batch of features has landed, so one shoot covers them all.
 
-- [ ] **Replace `5_settings.png` before uploading 2.1.** The current one shows the old list of four tunings.
+- [ ] **Replace `5_settings.png` before uploading 1.0.** The current one shows the old list of four tunings.
 - [ ] Shot list, adding any new features by then:
   - **Settings sheet:** a couple of real custom tunings on top, e.g. "Open C · just third" with `E−14¢` visible, and the instrument chips below.
   - **Custom editor with fine-tune open:** the high E's chip in sage at −14¢, with the slider showing.
@@ -74,6 +74,10 @@ Do this once the next batch of features has landed, so one shoot covers them all
 ## Also considered
 
 - [ ] A Quick Settings tile, so the tuner opens in one tap
+- [ ] **Usage analytics, after launch, and only if Play Console's own stats aren't enough.** These come free with no code in the app: installs, retention, devices, crashes and ANRs (deobfuscated from the bundle's mapping file), and ratings. If something more is needed:
+  - Make it opt-in, asked once, with a few anonymous events: which tuning is chosen, whether Practice and the drone get used.
+  - Use a privacy-focused service (e.g. TelemetryDeck) or our own endpoint, not Firebase or Google Analytics.
+  - The same release has to update the Data safety form ("collected"), the privacy page, and the full description, which promises "no internet access … no tracking". It also needs the INTERNET permission and a line in the changelog.
 - [ ] A choice between sharps and flats, and solfège note names
 - [ ] Transposing-instrument display (B♭ and E♭ instruments)
-- [x] Sweetened or stretch tunings (per-string cent offsets): possible with microtonal custom strings since 2.1
+- [x] Sweetened or stretch tunings (per-string cent offsets): possible with microtonal custom strings

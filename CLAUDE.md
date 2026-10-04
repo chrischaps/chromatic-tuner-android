@@ -4,11 +4,11 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-This is an Android chromatic tuner app built with Kotlin and Jetpack Compose that uses device microphone input to detect musical notes and provide tuning feedback. The app targets instruments like guitar and ukulele with real-time frequency analysis and visual feedback.
+This is an Android chromatic tuner app built with Kotlin and Jetpack Compose that uses device microphone input to detect musical notes and provide tuning feedback. The app targets guitar, bass, ukulele, strings and voice with real-time frequency analysis and visual feedback, plus reference tones and a practice view with a drone.
 
 ## Build Configuration
 
-- **Package**: `com.chrischappelear.tuner`
+- **Application ID**: `dev.chaps.tuner` (permanent on Play). The Kotlin namespace and source packages are still `com.chrischappelear.tuner`.
 - **Min SDK**: 26 (Android 8.0) - Required for adaptive icons and modern audio APIs
 - **Target SDK**: 36 (Play requires 36 for new apps and updates since Aug 31 2026)
 - **Compile SDK**: 36

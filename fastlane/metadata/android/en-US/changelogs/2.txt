@@ -1,1 +1,0 @@
-First release. A calm chromatic tuner with guitar, drop D and ukulele tunings, adjustable A4, and a drift trace.
