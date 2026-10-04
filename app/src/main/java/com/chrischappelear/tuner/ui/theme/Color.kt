@@ -7,7 +7,7 @@ import androidx.compose.ui.graphics.lerp
 import kotlin.math.abs
 
 /**
- * Colors drawn from the logo: slate-green dusk, an off-white glow, and sage for
+ * Slate-green dusk, an off-white glow, and sage for
  * the moment a string comes true. Drift is a warm amber on *both* sides of
  * center — direction is carried by position and the ♭/♯ marks, never by
  * a red/green pair.

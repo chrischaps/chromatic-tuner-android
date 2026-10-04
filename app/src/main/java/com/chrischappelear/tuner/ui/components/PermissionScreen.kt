@@ -42,7 +42,7 @@ fun PermissionScreen(
         verticalArrangement = Arrangement.Center
     ) {
         Image(
-            painter = painterResource(R.drawable.tuner_logo),
+            painter = painterResource(R.drawable.tuner_mark),
             contentDescription = null,
             contentScale = ContentScale.Crop,
             modifier = Modifier

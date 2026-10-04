@@ -15,7 +15,7 @@ A calm, accurate Android tuner for guitar, ukulele, and anything else that holds
 - **Lock bloom.** When a note holds within ±4¢, the display glows and gives a single soft haptic tick.
 - **Drift trace.** The last 8 seconds of cents-from-target, centered on "in tune".
 - **Colorblind-friendly.** Drift is amber on both sides of center. Direction is shown by position and ♭/♯, never by red versus green.
-- **Light and dark themes**, drawn from the logo's slate-green and glow. Portrait and landscape layouts.
+- **Light and dark themes**: slate-green dusk with a sage glow, or paper. The icon is drawn from the same palette. Portrait and landscape layouts.
 - **Microphone only while visible.** Listening stops a couple of seconds after the app leaves the screen.
 
 ## How it works

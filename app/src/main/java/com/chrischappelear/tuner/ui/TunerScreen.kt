@@ -104,7 +104,7 @@ fun TunerScreen(
             .fillMaxSize()
             .background(colors.background)
             .drawBehind {
-                // The logo's halo: a soft lift of light behind the dial.
+                // A soft lift of light behind the dial, like the icon's.
                 drawCircle(
                     brush = Brush.radialGradient(
                         listOf(colors.backgroundGlow, colors.background),
