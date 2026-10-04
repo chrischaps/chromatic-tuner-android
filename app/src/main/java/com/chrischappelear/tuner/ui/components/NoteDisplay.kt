@@ -31,6 +31,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.chrischappelear.tuner.R
 import com.chrischappelear.tuner.audio.ReferenceTone
 import com.chrischappelear.tuner.tuning.Note
@@ -219,5 +220,74 @@ private fun ReferenceReadout(reference: ReferenceTone, modifier: Modifier = Modi
             color = colors.inkMuted,
             textAlign = TextAlign.Center
         )
+    }
+}
+
+/**
+ * The practice view's reading, compact enough to leave the room to the pitch line:
+ * the note on the left, how far off it is and its frequency on the right. While a
+ * [reference] tone rings, that note instead.
+ */
+@Composable
+fun PracticeReadout(state: TunerState, modifier: Modifier = Modifier, reference: ReferenceTone? = null) {
+    val colors = TunerTheme.colors
+    val cents = state.cents.roundToInt()
+    val presence by animateFloatAsState(
+        if (state.status == TunerStatus.Fading && reference == null) 0.45f else 1f, tween(500), label = "presence"
+    )
+    val tint by animateColorAsState(
+        targetValue = when {
+            state.locked || cents == 0 -> colors.inTune
+            else -> colors.forCents(state.cents.toFloat())
+        },
+        label = "practiceTint"
+    )
+    Box(modifier.fillMaxWidth().height(88.dp).alpha(presence), contentAlignment = Alignment.Center) {
+        val note = reference?.note ?: state.note.takeIf { state.status != TunerStatus.Idle }
+        if (note == null) {
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Text(stringResource(R.string.hint_sing), style = TunerType.cents, color = colors.inkMuted)
+                Text(stringResource(R.string.hint_sing_detail), style = TunerType.detail, color = colors.inkMuted)
+            }
+            return@Box
+        }
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(20.dp)) {
+            CompactNote(note, flats = state.tuning.flats, color = if (state.locked && reference == null) colors.glow else colors.ink)
+            Column {
+                Text(
+                    text = when {
+                        reference != null -> stringResource(R.string.listen)
+                        state.locked || cents == 0 -> stringResource(R.string.in_tune)
+                        else -> stringResource(R.string.cents_format, if (cents > 0) "+$cents" else "−${abs(cents)}")
+                    },
+                    style = TunerType.cents,
+                    color = if (reference != null) colors.ink else tint
+                )
+                Text(
+                    text = String.format(Locale.getDefault(), "%.1f Hz", reference?.frequency ?: state.frequency),
+                    style = TunerType.detail,
+                    color = colors.inkMuted
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun CompactNote(note: Note, flats: Boolean, color: Color) {
+    val colors = TunerTheme.colors
+    val spelling = note.spelled(flats)
+    Row(Modifier.height(IntrinsicSize.Min), verticalAlignment = Alignment.CenterVertically) {
+        Text(spelling.letter, style = TunerType.noteLetter.copy(fontSize = 68.sp, lineHeight = 68.sp), color = color)
+        Column(
+            modifier = Modifier
+                .width(22.dp)
+                .fillMaxHeight()
+                .padding(vertical = 10.dp),
+            verticalArrangement = Arrangement.SpaceBetween
+        ) {
+            Text(spelling.accidental, style = TunerType.noteAccidental.copy(fontSize = 26.sp, lineHeight = 26.sp), color = color)
+            Text(spelling.octave.toString(), style = TunerType.noteOctave.copy(fontSize = 15.sp, lineHeight = 15.sp), color = colors.inkMuted)
+        }
     }
 }

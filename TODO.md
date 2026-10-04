@@ -41,11 +41,14 @@ Feature ideas for upcoming Chaps Tuner releases, roughly in the order to build t
 - [ ] Add a "loud room" setting that tightens the clarity and RMS gates in `TuningProcessor`'s companion.
 - [ ] Test it with the acoustic WAV method plus background noise and crosstalk (another instrument playing a different note).
 
-## 5. Pitch practice (voice, fretless, violin)
+## 5. Pitch practice (voice, fretless, violin) ✅ (checked on the Pixel)
 
-- [ ] In Chromatic mode, add a practice view: a longer scrolling pitch line (30–60 s) with note gridlines, built on `PitchHistory` and `CentsTrace`.
-- [ ] Add an optional drone on a chosen note, reusing the synth from #2.
-- [ ] Make the pitch line glide between notes when you sing a scale, instead of resetting to the nearest semitone.
+- [x] In Chromatic mode, add a practice view: a longer scrolling pitch line (30–60 s) with note gridlines. (`PitchLine`: 30 s on a piano roll, with the drone's note glowing in every octave; behind a Tune/Practice switch.)
+- [x] Add an optional drone on a chosen note, reusing the synth from #2. (`Tanpura`: plucks of the note and its octave, in phase. It plays on while you sing, and `DroneCanceller` comb-filters it out of the microphone.)
+- [x] Make the pitch line glide between notes when you sing a scale, instead of resetting to the nearest semitone. (`TracePoint.midi`.)
+- [x] Checked on the Pixel: a D3 drone through the speaker stays off the line. A scale played from the PC over it reads clean, D4, A4 and D5 on the drone's harmonics included, and Chris sang over it.
+- [ ] One blip (E4–F4) appeared while the drone was stepped 19 semitones in quick succession. It's probably the old drone's tail outliving the 400 ms gate after a retune. Worth a look if it shows up with normal stepping.
+- Note for the future: a voice in unison with the drone only reads when it's clearly louder than the drone (8 dB). With headphones that's always the case.
 
 ## Polish
 

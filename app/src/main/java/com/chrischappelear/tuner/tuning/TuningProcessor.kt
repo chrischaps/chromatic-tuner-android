@@ -54,6 +54,9 @@ class TuningProcessor(
 
     private val recent = ArrayDeque<Double>()
     private val filter = OneEuroFilter(minCutoff = 1.2, beta = 0.04)
+    /** Smooths the pitch line, in cents; unlike [filter], it carries on across note changes. */
+    private val glideFilter = OneEuroFilter(minCutoff = 1.2, beta = 0.04)
+    private var glideMidi: Double? = null
 
     private var target: Note? = null
     private var targetString: Int? = null
@@ -82,6 +85,7 @@ class TuningProcessor(
         this.tuning = tuning
         this.a4 = a4
         clearTarget()
+        clearGlide()
         recent.clear()
         state = idleState()
     }
@@ -89,6 +93,7 @@ class TuningProcessor(
     /** Forget the current note and trace, e.g. when listening resumes after a pause. */
     fun reset() {
         clearTarget()
+        clearGlide()
         recent.clear()
         recentRms.clear()
         framesSinceOnset = NO_ONSET
@@ -111,11 +116,13 @@ class TuningProcessor(
             }
         }
 
+        val active = state.status == TunerStatus.Active
         history.add(
             TracePoint(
                 timeMs = nowMs,
-                cents = if (state.status == TunerStatus.Active) state.cents.toFloat() else null,
-                note = state.note.takeIf { state.status == TunerStatus.Active }
+                cents = if (active) state.cents.toFloat() else null,
+                note = state.note.takeIf { active },
+                midi = glideMidi?.toFloat()?.takeIf { active }
             )
         )
         return state
@@ -133,6 +140,7 @@ class TuningProcessor(
 
         val smoothedFrequency = recent.sorted()[recent.size / 2]
         val midi = NoteMath.frequencyToMidi(smoothedFrequency, a4)
+        glideMidi = glideFilter.filter(midi * 100, nowMs) / 100
 
         val candidateString = if (tuning.isChromatic) null else tuning.nearestString(midi)
         val candidate = candidateString?.let { tuning.strings[it].note } ?: Note(midi.roundToInt())
@@ -186,6 +194,7 @@ class TuningProcessor(
                 // Ride out brief dropouts without flickering.
                 if (silentFrames < DROPOUT_FRAMES) return state
                 recent.clear()
+                clearGlide()
                 pendingKey = null
                 pendingCount = 0
                 inTuneSinceMs = null
@@ -298,6 +307,11 @@ class TuningProcessor(
         inTuneSinceMs = null
         locked = false
         filter.reset()
+    }
+
+    private fun clearGlide() {
+        glideMidi = null
+        glideFilter.reset()
     }
 
     private fun clearTarget() {

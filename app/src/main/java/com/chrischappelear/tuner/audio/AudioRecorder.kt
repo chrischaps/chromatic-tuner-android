@@ -23,15 +23,16 @@ import kotlinx.coroutines.isActive
  * The microphone is opened when collection starts and released when it stops, all
  * on the same worker thread, so the recording's lifetime is exactly the collector's.
  * Analysis uses a sliding window advanced by a hop, both set by the [CaptureProfile].
+ * While the app's drone plays, [drone] says what it is, so it can be heard past.
  * A null reading means no clear pitch.
  */
 class AudioRecorder(private val context: Context) {
-    fun frames(profile: CaptureProfile): Flow<PitchEstimate?> = flow {
+    fun frames(profile: CaptureProfile, drone: () -> DroneSound? = { null }): Flow<PitchEstimate?> = flow {
         val windowSize = profile.windowSize
         val hopSize = profile.hopSize
         val config = openRecord(windowSize) ?: return@flow
         val (record, sampleRate) = config
-        val detector = PitchDetector(windowSize, profile.minFrequency, profile.maxFrequency)
+        val detector = DroneCanceller(profile)
         val window = FloatArray(windowSize)
         val hop = FloatArray(hopSize)
         var filled = 0
@@ -53,7 +54,7 @@ class AudioRecorder(private val context: Context) {
                 System.arraycopy(hop, 0, window, windowSize - hopSize, hopSize)
                 filled = minOf(filled + hopSize, windowSize)
 
-                if (filled == windowSize) emit(detector.detect(window, sampleRate))
+                if (filled == windowSize) emit(detector.detect(window, sampleRate, drone()))
             }
         } finally {
             if (record.recordingState == AudioRecord.RECORDSTATE_RECORDING) record.stop()

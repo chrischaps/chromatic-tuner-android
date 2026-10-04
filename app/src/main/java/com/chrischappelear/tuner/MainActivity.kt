@@ -42,6 +42,7 @@ class MainActivity : ComponentActivity() {
                 val settings by viewModel.settings.collectAsStateWithLifecycle()
                 val hasPermission by viewModel.hasPermission.collectAsStateWithLifecycle()
                 val reference by viewModel.reference.collectAsStateWithLifecycle()
+                val drone by viewModel.drone.collectAsStateWithLifecycle()
 
                 TunerScreen(
                     uiState = uiState,
@@ -55,7 +56,10 @@ class MainActivity : ComponentActivity() {
                     onA4Changed = viewModel::setA4,
                     onSaveCustomTuning = viewModel::saveCustomTuning,
                     onDeleteCustomTuning = viewModel::deleteCustomTuning,
-                    onPlayReference = viewModel::playReference
+                    onPlayReference = viewModel::playReference,
+                    drone = drone,
+                    onStartDrone = viewModel::startDrone,
+                    onStopDrone = viewModel::stopDrone
                 )
             }
         }
@@ -69,7 +73,7 @@ class MainActivity : ComponentActivity() {
 
     override fun onStop() {
         super.onStop()
-        // A tone shouldn't follow the user out of the app, but it can ring through a rotation.
+        // A tone or the drone shouldn't follow the user out of the app, but rings through a rotation.
         if (!isChangingConfigurations) viewModel.stopReference()
     }
 

@@ -28,7 +28,10 @@ import kotlin.math.sqrt
 class PluckVoice(
     frequency: Double,
     sampleRate: Int,
-    seed: Long = frequency.toBits()
+    seed: Long = frequency.toBits(),
+    private val level: Double = 1.0,
+    ringSeconds: Double = RING_SECONDS,
+    durationSeconds: Double = DURATION_SECONDS
 ) {
     private val delay: FloatArray
     private var index = 0
@@ -46,7 +49,7 @@ class PluckVoice(
 
     private var position = 0
     private val attackSamples = (ATTACK_SECONDS * sampleRate).roundToInt()
-    private val fadeStart = ((DURATION_SECONDS - FADE_SECONDS) * sampleRate).roundToInt()
+    private val fadeStart = ((durationSeconds - FADE_SECONDS) * sampleRate).roundToInt()
     private val fadeSamples = (FADE_SECONDS * sampleRate).roundToInt()
     private val releaseSamples = (RELEASE_SECONDS * sampleRate).roundToInt()
     private var releaseAt = -1
@@ -57,7 +60,7 @@ class PluckVoice(
 
     init {
         val omega = 2 * PI * frequency / sampleRate
-        val perPass = exp(ln(SILENCE) / (frequency * RING_SECONDS))
+        val perPass = exp(ln(SILENCE) / (frequency * ringSeconds))
 
         // A plain average costs cos(ω/2) of the fundamental on every pass, which would
         // silence high notes in a second or two; weigh it more lightly where needed.
@@ -107,7 +110,7 @@ class PluckVoice(
         // A gentle high-pass keeps any leftover offset out of the speaker.
         dcOut = current - dcIn + dcPole * dcOut
         dcIn = current
-        return dcOut * GAIN
+        return dcOut * GAIN * level
     }
 
     private fun envelope(): Double {
@@ -131,7 +134,7 @@ class PluckVoice(
         private const val RELEASE_SECONDS = 0.03
 
         /** Time for the string to die away by 60 dB, were it left to ring. */
-        private const val RING_SECONDS = 10.0
+        const val RING_SECONDS = 10.0
         private const val SILENCE = 0.001
         private const val MAX_LOSS = 0.99995
         private const val MIN_STRETCH = 0.05

@@ -3,6 +3,7 @@ package com.chrischappelear.tuner.ui
 import android.content.res.Configuration
 import android.os.Build
 import android.view.HapticFeedbackConstants
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -13,6 +14,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -21,6 +23,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -38,6 +41,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
@@ -57,8 +61,11 @@ import com.chrischappelear.tuner.tuning.TuningString
 import com.chrischappelear.tuner.tuning.Tunings
 import com.chrischappelear.tuner.ui.components.CentsTrace
 import com.chrischappelear.tuner.ui.components.CustomTuningCard
+import com.chrischappelear.tuner.ui.components.DronePicker
 import com.chrischappelear.tuner.ui.components.NoteGlyph
 import com.chrischappelear.tuner.ui.components.PermissionScreen
+import com.chrischappelear.tuner.ui.components.PitchLine
+import com.chrischappelear.tuner.ui.components.PracticeReadout
 import com.chrischappelear.tuner.ui.components.REFERENCE_RANGE
 import com.chrischappelear.tuner.ui.components.Readout
 import com.chrischappelear.tuner.ui.components.ReferencePicker
@@ -85,7 +92,11 @@ fun TunerScreen(
     onA4Changed: (Double) -> Unit,
     onSaveCustomTuning: (Tuning) -> Unit,
     onDeleteCustomTuning: (Tuning) -> Unit,
-    onPlayReference: (TuningString, Int?) -> Unit
+    onPlayReference: (TuningString, Int?) -> Unit,
+    drone: Note? = null,
+    onStartDrone: (Note) -> Unit = {},
+    onStopDrone: () -> Unit = {},
+    startInPractice: Boolean = false
 ) {
     val colors = TunerTheme.colors
     Box(
@@ -114,8 +125,9 @@ fun TunerScreen(
             )
         } else {
             TunerContent(
-                uiState, settings, reference,
-                onTuningSelected, onA4Changed, onSaveCustomTuning, onDeleteCustomTuning, onPlayReference
+                uiState, settings, reference, drone,
+                onTuningSelected, onA4Changed, onSaveCustomTuning, onDeleteCustomTuning, onPlayReference,
+                onStartDrone, onStopDrone, startInPractice
             )
         }
     }
@@ -126,15 +138,28 @@ private fun TunerContent(
     uiState: TunerUiState,
     settings: TunerSettings,
     reference: ReferenceTone?,
+    drone: Note?,
     onTuningSelected: (Tuning) -> Unit,
     onA4Changed: (Double) -> Unit,
     onSaveCustomTuning: (Tuning) -> Unit,
     onDeleteCustomTuning: (Tuning) -> Unit,
-    onPlayReference: (TuningString, Int?) -> Unit
+    onPlayReference: (TuningString, Int?) -> Unit,
+    onStartDrone: (Note) -> Unit,
+    onStopDrone: () -> Unit,
+    startInPractice: Boolean
 ) {
     val state = uiState.tuner
     var showSettings by rememberSaveable { mutableStateOf(false) }
+    // One note for the chromatic picker and the drone, so moving between them keeps it.
     var pickerMidi by rememberSaveable { mutableIntStateOf(Note.parse("A4").midi) }
+    var practice by rememberSaveable { mutableStateOf(startInPractice) }
+    val chromatic = settings.tuning.isChromatic
+    val practicing = practice && chromatic
+
+    // The drone belongs to the practice view and stops on leaving it, though not on a rotation.
+    LaunchedEffect(practicing) {
+        if (!practicing) onStopDrone()
+    }
 
     // Strings to tap in a preset; in chromatic, a single note to pick and pluck.
     val strings: @Composable (Modifier) -> Unit = { modifier ->
@@ -159,6 +184,21 @@ private fun TunerContent(
         }
     }
 
+    val dronePicker: @Composable (Modifier) -> Unit = { modifier ->
+        DronePicker(
+            note = Note(pickerMidi),
+            droning = drone != null,
+            reference = reference,
+            onStep = { step ->
+                pickerMidi = (pickerMidi + step).coerceIn(REFERENCE_RANGE)
+                if (drone != null) onStartDrone(Note(pickerMidi))
+                else onPlayReference(TuningString(Note(pickerMidi)), null)
+            },
+            onToggle = { if (drone != null) onStopDrone() else onStartDrone(Note(pickerMidi)) },
+            modifier = modifier
+        )
+    }
+
     KeepScreenOn()
     LockHaptics(state.lockCount)
 
@@ -166,8 +206,35 @@ private fun TunerContent(
         val landscape = maxWidth > maxHeight
         Column(Modifier.fillMaxSize().padding(horizontal = 20.dp)) {
             TopBar(settings, onClick = { showSettings = true })
+            if (chromatic) {
+                ModeSwitch(
+                    practice = practice,
+                    onChange = { practice = it },
+                    modifier = Modifier
+                        .align(Alignment.CenterHorizontally)
+                        .padding(bottom = 8.dp)
+                )
+            }
 
-            if (landscape) {
+            if (practicing) {
+                if (landscape) {
+                    Row(Modifier.weight(1f).padding(bottom = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+                        PitchLine(uiState.history, drone, Modifier.weight(1.5f).fillMaxHeight(), flats = state.tuning.flats)
+                        Spacer(Modifier.width(24.dp))
+                        Column(Modifier.weight(1f), verticalArrangement = Arrangement.Center) {
+                            PracticeReadout(state, reference = reference)
+                            Spacer(Modifier.height(20.dp))
+                            dronePicker(Modifier)
+                        }
+                    }
+                } else {
+                    PracticeReadout(state, reference = reference)
+                    Spacer(Modifier.height(8.dp))
+                    PitchLine(uiState.history, drone, Modifier.weight(1f), flats = state.tuning.flats)
+                    Spacer(Modifier.height(20.dp))
+                    dronePicker(Modifier.padding(bottom = 20.dp))
+                }
+            } else if (landscape) {
                 Row(Modifier.weight(1f), verticalAlignment = Alignment.CenterVertically) {
                     Dial(state, reference, Modifier.weight(1f))
                     Spacer(Modifier.width(24.dp))
@@ -217,6 +284,34 @@ private fun Dial(state: TunerState, reference: ReferenceTone?, modifier: Modifie
             )
             NoteGlyph(state, Modifier.offset(y = (-6).dp), reference)
             Readout(state, reference = reference)
+        }
+    }
+}
+
+/** Chromatic's two views: the tuner, and practice with the pitch line and drone. */
+@Composable
+private fun ModeSwitch(practice: Boolean, onChange: (Boolean) -> Unit, modifier: Modifier = Modifier) {
+    val colors = TunerTheme.colors
+    Row(
+        modifier
+            .clip(CircleShape)
+            .border(1.dp, colors.track, CircleShape)
+            .padding(3.dp)
+    ) {
+        for ((value, label) in listOf(false to R.string.mode_tune, true to R.string.mode_practice)) {
+            val selected = practice == value
+            val fill by animateColorAsState(if (selected) colors.track else Color.Transparent, label = "modeFill")
+            val ink by animateColorAsState(if (selected) colors.ink else colors.inkMuted, label = "modeInk")
+            Text(
+                text = stringResource(label),
+                style = TunerType.detail,
+                color = ink,
+                modifier = Modifier
+                    .clip(CircleShape)
+                    .background(fill, CircleShape)
+                    .selectable(selected = selected, role = Role.Tab, onClick = { onChange(value) })
+                    .padding(horizontal = 18.dp, vertical = 6.dp)
+            )
         }
     }
 }
@@ -309,7 +404,13 @@ private fun previewState(cents: Double, locked: Boolean = false, status: TunerSt
     )
 
 @Composable
-private fun Preview(uiState: TunerUiState, darkTheme: Boolean = true, reference: ReferenceTone? = null) {
+private fun Preview(
+    uiState: TunerUiState,
+    darkTheme: Boolean = true,
+    reference: ReferenceTone? = null,
+    drone: Note? = null,
+    practice: Boolean = false
+) {
     ChromaticTunerTheme(darkTheme = darkTheme) {
         TunerScreen(
             uiState = uiState,
@@ -323,7 +424,9 @@ private fun Preview(uiState: TunerUiState, darkTheme: Boolean = true, reference:
             onA4Changed = {},
             onSaveCustomTuning = {},
             onDeleteCustomTuning = {},
-            onPlayReference = { _, _ -> }
+            onPlayReference = { _, _ -> },
+            drone = drone,
+            startInPractice = practice
         )
     }
 }
@@ -354,6 +457,49 @@ private fun ReferencePreview() = Preview(
 @Preview(name = "Chromatic · light", widthDp = 390, heightDp = 844)
 @Composable
 private fun ChromaticPreview() = Preview(TunerUiState(), darkTheme = false)
+
+/** A scale sung over a D drone: up from D4, a little flat on the third, sliding between steps. */
+private fun previewScale(): TunerUiState {
+    val steps = listOf(62.0, 64.0, 65.85, 67.0, 69.0, 67.0, 65.9, 64.0, 62.05)
+    val points = mutableListOf<TracePoint>()
+    var t = 0L
+    var midi = steps.first()
+    for (step in steps) {
+        val from = midi
+        repeat(70) { frame ->
+            midi = if (frame < 5) from + (step - from) * (frame + 1) / 5 else step + 0.06 * kotlin.math.sin(frame / 4.0)
+            points += TracePoint(t, 0f, Note(midi.roundToInt()), midi.toFloat())
+            t += 21
+        }
+        repeat(8) {
+            points += TracePoint(t, null, null)
+            t += 21
+        }
+    }
+    val now = android.os.SystemClock.elapsedRealtime()
+    return TunerUiState(
+        tuner = TunerState(
+            status = TunerStatus.Active,
+            note = Note(62),
+            frequency = 294.5,
+            cents = 4.0,
+            tuning = Tunings.Chromatic
+        ),
+        history = points.dropLast(8).map { it.copy(timeMs = it.timeMs - t + 8 * 21 + now) }
+    )
+}
+
+@Preview(name = "Practice", widthDp = 390, heightDp = 844)
+@Composable
+private fun PracticePreview() = Preview(previewScale(), drone = Note.parse("D3"), practice = true)
+
+@Preview(name = "Practice · light", widthDp = 390, heightDp = 844)
+@Composable
+private fun PracticeLightPreview() = Preview(previewScale(), darkTheme = false, drone = Note.parse("D3"), practice = true)
+
+@Preview(name = "Practice · landscape", widthDp = 844, heightDp = 390, uiMode = Configuration.UI_MODE_NIGHT_YES)
+@Composable
+private fun PracticeLandscapePreview() = Preview(previewScale(), practice = true)
 
 @Preview(name = "Landscape", widthDp = 844, heightDp = 390, uiMode = Configuration.UI_MODE_NIGHT_YES)
 @Composable

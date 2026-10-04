@@ -3,6 +3,7 @@ package com.chrischappelear.tuner
 import android.Manifest
 import android.app.Application
 import android.content.pm.PackageManager
+import android.media.AudioManager
 import android.os.SystemClock
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.AndroidViewModel
@@ -13,6 +14,7 @@ import com.chrischappelear.tuner.audio.ReferenceTone
 import com.chrischappelear.tuner.audio.TonePlayer
 import com.chrischappelear.tuner.data.SettingsRepository
 import com.chrischappelear.tuner.data.TunerSettings
+import com.chrischappelear.tuner.tuning.Note
 import com.chrischappelear.tuner.tuning.NoteMath
 import com.chrischappelear.tuner.tuning.TracePoint
 import com.chrischappelear.tuner.tuning.TunerState
@@ -44,10 +46,13 @@ class TunerViewModel(application: Application) : AndroidViewModel(application) {
     private val recorder = AudioRecorder(application)
     private val settingsRepository = SettingsRepository(application)
     private val processor = TuningProcessor()
-    private val tonePlayer = TonePlayer(viewModelScope)
+    private val tonePlayer = TonePlayer(viewModelScope, application.getSystemService(AudioManager::class.java))
 
     /** The reference tone ringing, if any; the screen shows it in place of the reading. */
     val reference: StateFlow<ReferenceTone?> = tonePlayer.sounding
+
+    /** The note the practice drone is on, while it plays. */
+    val drone: StateFlow<Note?> = tonePlayer.drone
 
     private val _hasPermission = MutableStateFlow(checkPermission())
     val hasPermission: StateFlow<Boolean> = _hasPermission.asStateFlow()
@@ -67,13 +72,14 @@ class TunerViewModel(application: Application) : AndroidViewModel(application) {
      * Listens only while collected and permitted. The 2 s grace period keeps the
      * microphone open across a rotation but releases it soon after the app leaves
      * the screen. Moving between bass and other tunings reopens it with a new profile.
-     * While a reference tone plays, the microphone hears it, so those frames count as silence.
+     * While a reference tone plays, the microphone hears it, so those frames count as
+     * silence. The drone plays on under a voice, so it's cancelled instead.
      */
     @OptIn(ExperimentalCoroutinesApi::class)
     val uiState: StateFlow<TunerUiState> = combine(_hasPermission, captureProfile, ::Pair)
         .flatMapLatest { (granted, profile) ->
             if (!granted) emptyFlow()
-            else recorder.frames(profile)
+            else recorder.frames(profile) { tonePlayer.droneSound }
                 .onStart { processor.reset() }
                 .map { estimate ->
                     val current = settings.value
@@ -85,6 +91,13 @@ class TunerViewModel(application: Application) : AndroidViewModel(application) {
                 .flowOn(Dispatchers.Default)
         }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(2_000), TunerUiState())
+
+    init {
+        // A drone left playing while A4 changes follows it.
+        viewModelScope.launch {
+            settings.map { it.a4 }.distinctUntilChanged().collect { drone.value?.let(::startDrone) }
+        }
+    }
 
     fun refreshPermission() {
         _hasPermission.value = checkPermission()
@@ -109,8 +122,18 @@ class TunerViewModel(application: Application) : AndroidViewModel(application) {
         tonePlayer.play(string.note, string.cents, frequency, stringIndex)
     }
 
+    /** Stops every tone, the drone included. */
     fun stopReference() {
         tonePlayer.stop()
+    }
+
+    /** Starts the drone on [note] at the current A4, or moves it there. */
+    fun startDrone(note: Note) {
+        tonePlayer.startDrone(note, NoteMath.midiToFrequency(note.midi.toDouble(), settings.value.a4))
+    }
+
+    fun stopDrone() {
+        tonePlayer.stopDrone()
     }
 
     fun setA4(a4: Double) {

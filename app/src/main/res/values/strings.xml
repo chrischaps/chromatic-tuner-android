@@ -20,6 +20,18 @@
     <string name="trace_title">DRIFT</string>
     <string name="trace_window">%1$ds</string>
 
+    <string name="mode_tune">Tune</string>
+    <string name="mode_practice">Practice</string>
+    <string name="pitch_title">PITCH</string>
+    <string name="hint_sing">sing or play</string>
+    <string name="hint_sing_detail">your pitch draws itself below</string>
+    <string name="drone_off">tap for a drone</string>
+    <string name="drone_on">drone · tap to stop</string>
+    <string name="drone_start">start the drone</string>
+    <string name="drone_stop">stop the drone</string>
+    <string name="drone_step_down">Drone a semitone lower</string>
+    <string name="drone_step_up">Drone a semitone higher</string>
+
     <string name="a4_chip">A4 · %1$d</string>
     <string name="settings_tuning">Tuning</string>
     <string name="settings_reference">Reference pitch</string>

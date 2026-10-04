@@ -3,7 +3,10 @@ package com.chrischappelear.tuner.ui.components
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.border
 import androidx.compose.foundation.background
@@ -12,14 +15,17 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.State
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
@@ -55,6 +61,7 @@ private val PILL_SIZE = 46.dp
 private val RIPPLE_SPREAD = 16.dp
 private const val RIPPLES = 3
 private val TONE_MS = (PluckVoice.DURATION_SECONDS * 1000).toInt()
+private const val DRONE_RIPPLE_MS = 2_400
 
 /** E1 to C6: low enough for a bass, high enough for a violin's E string and beyond. */
 val REFERENCE_RANGE = 28..84
@@ -141,6 +148,61 @@ fun ReferencePicker(
     }
 }
 
+/**
+ * The practice view's drone: one pill for its note, with steps a semitone down and up.
+ * Tapping the pill starts and stops the drone, and it breathes slow sage rings while
+ * it plays, the colour of the drone's rows on the pitch line. With the drone off,
+ * stepping plucks the new note, as the reference picker does; with it on, the drone moves.
+ */
+@Composable
+fun DronePicker(
+    note: Note,
+    droning: Boolean,
+    reference: ReferenceTone?,
+    onStep: (Int) -> Unit,
+    onToggle: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val colors = TunerTheme.colors
+    Column(modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(18.dp, Alignment.CenterHorizontally),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            StepButton(
+                "−",
+                stringResource(R.string.drone_step_down),
+                enabled = note.midi > REFERENCE_RANGE.first,
+                size = 36.dp
+            ) { onStep(-1) }
+            StringPill(
+                string = TuningString(note),
+                flats = false,
+                size = PILL_SIZE,
+                active = false,
+                tuned = false,
+                tint = colors.inTune,
+                ringing = reference?.takeIf { it.stringIndex == null && it.note == note },
+                droning = droning,
+                clickLabel = stringResource(if (droning) R.string.drone_stop else R.string.drone_start),
+                onClick = onToggle
+            )
+            StepButton(
+                "+",
+                stringResource(R.string.drone_step_up),
+                enabled = note.midi < REFERENCE_RANGE.last,
+                size = 36.dp
+            ) { onStep(1) }
+        }
+        Text(
+            text = stringResource(if (droning) R.string.drone_on else R.string.drone_off),
+            style = TunerType.detail,
+            color = if (droning) colors.inTune else colors.inkMuted,
+            modifier = Modifier.padding(top = 10.dp)
+        )
+    }
+}
+
 @Composable
 private fun StringPill(
     string: TuningString,
@@ -150,12 +212,15 @@ private fun StringPill(
     tuned: Boolean,
     tint: Color,
     ringing: ReferenceTone?,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    droning: Boolean = false,
+    clickLabel: String = stringResource(R.string.play_reference)
 ) {
     val colors = TunerTheme.colors
     val sounding = ringing != null
     val border by animateColorAsState(
         targetValue = when {
+            droning -> colors.inTune
             sounding -> colors.ink.copy(alpha = 0.7f)
             active -> tint
             tuned -> colors.inTune.copy(alpha = 0.6f)
@@ -165,6 +230,7 @@ private fun StringPill(
     )
     val fill by animateColorAsState(
         targetValue = when {
+            droning -> colors.inTune.copy(alpha = 0.14f)
             sounding -> colors.ink.copy(alpha = 0.07f)
             active -> tint.copy(alpha = 0.16f)
             else -> Color.Transparent
@@ -172,10 +238,10 @@ private fun StringPill(
         label = "pillFill"
     )
     val text by animateColorAsState(
-        targetValue = if (active || sounding) colors.ink else colors.inkMuted,
+        targetValue = if (active || sounding || droning) colors.ink else colors.inkMuted,
         label = "pillText"
     )
-    val scale by animateFloatAsState(if (active || sounding) 1.08f else 1f, label = "pillScale")
+    val scale by animateFloatAsState(if (active || sounding || droning) 1.08f else 1f, label = "pillScale")
     val spelling = string.note.spelled(flats)
     val description = spelling.displayName + TuningString.centsLabel(string.cents) + if (tuned) ", tuned" else ""
     val textScale = size / PILL_SIZE
@@ -191,11 +257,24 @@ private fun StringPill(
     }
     val ripplePeriod = ripplePeriodMs(ringing?.frequency ?: 110.0)
     val rippleColor = colors.ink
+    val droneColor = colors.inTune
+    val breath = if (droning) dronePhase() else null
 
     Box(
         modifier = Modifier
             .size(size)
             .drawBehind {
+                breath?.value?.let { phase ->
+                    // The drone never dies away, so its rings don't either.
+                    for (k in 0 until RIPPLES) {
+                        val p = (phase + k.toFloat() / RIPPLES) % 1f
+                        drawCircle(
+                            color = droneColor.copy(alpha = 0.45f * (1 - p) * (1 - p)),
+                            radius = this.size.minDimension / 2 + p * RIPPLE_SPREAD.toPx() * 1.3f,
+                            style = Stroke(width = 1.2.dp.toPx())
+                        )
+                    }
+                }
                 val t = ring.value
                 if (t >= 1f) return@drawBehind
                 // Rings spread from the pill like the air around a string, fading with the tone.
@@ -218,7 +297,7 @@ private fun StringPill(
                 interactionSource = remember { MutableInteractionSource() },
                 indication = null,
                 role = Role.Button,
-                onClickLabel = stringResource(R.string.play_reference),
+                onClickLabel = clickLabel,
                 onClick = onClick
             )
             .background(fill, CircleShape)
@@ -246,6 +325,14 @@ private fun StringPill(
         }
     }
 }
+
+@Composable
+private fun dronePhase(): State<Float> = rememberInfiniteTransition(label = "drone").animateFloat(
+    initialValue = 0f,
+    targetValue = 1f,
+    animationSpec = infiniteRepeatable(tween(DRONE_RIPPLE_MS, easing = LinearEasing)),
+    label = "breath"
+)
 
 /** Low strings ripple slowly and high ones quickly: about 1.5 s at B0, 0.6 s at C6. */
 private fun ripplePeriodMs(frequency: Double): Float {

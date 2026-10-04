@@ -301,4 +301,41 @@ class TuningProcessorTest {
         assertTrue(points.last().cents == null)
         assertTrue(points[5].cents != null)
     }
+
+    @Test
+    fun pitchLineGlidesThroughASungScale() {
+        // C4 D4 E4 F4, each held 0.4 s, sliding to the next over 80 ms as a voice does.
+        val p = TuningProcessor()
+        val steps = listOf(60, 62, 64, 65)
+        var midi = steps.first().toDouble()
+        for ((i, step) in steps.withIndex()) {
+            val from = midi
+            repeat(20) { frame ->
+                midi = if (i == 0 || frame >= 4) step.toDouble() else from + (step - from) * (frame + 1) / 4
+                p.feed(NoteMath.midiToFrequency(midi))
+            }
+        }
+        val line = p.history.snapshot().drop(3).map { it.midi }
+        // One unbroken line, not a new one per note...
+        assertTrue(line.all { it != null })
+        val values = line.filterNotNull()
+        // ...that passes between the steps rather than jumping...
+        assertTrue(values.any { it in 60.6f..61.4f })
+        assertTrue(values.any { it in 62.6f..63.4f })
+        // ...and settles on each one.
+        for (step in steps) assertTrue("never settled on $step", values.any { abs(it - step) < 0.03f })
+        // The tuner's own reading still names one note at a time.
+        assertEquals(Note(65), p.history.snapshot().last().note)
+    }
+
+    @Test
+    fun pitchLineBreaksAtSilence() {
+        val p = TuningProcessor()
+        p.feed(220.0, 20)
+        p.feed(null, 80)
+        p.feed(330.0, 20)
+        val points = p.history.snapshot()
+        assertTrue(points.any { it.midi == null })
+        assertEquals(NoteMath.frequencyToMidi(330.0).toFloat(), points.last().midi!!, 0.05f)
+    }
 }
