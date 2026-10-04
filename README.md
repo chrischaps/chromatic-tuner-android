@@ -30,6 +30,7 @@ AudioRecorder ──► PitchDetector ──► TuningProcessor ──► TunerV
 3. **Interpretation** (`tuning/TuningProcessor.kt`) turns noisy per-frame readings into a steady state:
    - It gates frames on clarity and level.
    - It requires a steady onset and rejects murky stray frames.
+   - It holds back octave jumps. In a preset, a jump that didn't come with a fresh pluck is folded back onto the string. A phone microphone barely hears a low string's fundamental, so a ringing low E can otherwise read as E3, which the nearest-string rule would call D3.
    - It holds a note through brief dropouts and lets it fade over 1.5 s.
    - It detects the "locked in tune" moment.
 

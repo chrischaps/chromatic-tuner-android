@@ -25,6 +25,16 @@ class TuningProcessorTest {
         return state
     }
 
+    /** A plucked string: [frames] readings whose level starts at [rms] and decays, as on the device. */
+    private fun TuningProcessor.ring(frequency: Double, frames: Int, rms: Double = 0.03): TunerState {
+        var state = TunerState()
+        repeat(frames) { i ->
+            now += frameMs
+            state = process(PitchEstimate(frequency, clarity = 0.95, rms = rms * Math.pow(0.97, i.toDouble())), now)
+        }
+        return state
+    }
+
     private val a2 = Note.parse("A2")
 
     @Test
@@ -128,6 +138,49 @@ class TuningProcessorTest {
         val p = TuningProcessor()
         p.feed(440.0, 30)
         assertEquals(Note(57), p.feed(220.0, 20).note)
+    }
+
+    @Test
+    fun ringingLowStringThatReadsAnOctaveUpStaysOnItsString() {
+        // Recorded on a Pixel: half a second into a low E, the fundamental and third
+        // harmonic fade until the detector reads E3 for up to a second, which the
+        // nearest-string rule would call D3 +197¢.
+        val p = TuningProcessor(Tunings.GuitarStandard)
+        val e2 = Note.parse("E2")
+        p.ring(e2.frequency(), 25)
+        var state = TunerState()
+        var level = 0.03 * Math.pow(0.97, 25.0)
+        repeat(50) {
+            level *= 0.97
+            now += frameMs
+            state = p.process(PitchEstimate(detuned(e2, 3.0) * 2, clarity = 0.93, rms = level), now)
+            assertEquals(0, state.stringIndex)
+            assertEquals(e2, state.note)
+        }
+        assertEquals(3.0, state.cents, 0.5)
+        assertEquals(0, p.ring(e2.frequency(), 10, rms = level).stringIndex)
+    }
+
+    @Test
+    fun freshPluckAnOctaveUpMovesToThatString() {
+        // Open D has D2 and D3 strings: plucking the higher one is a real change.
+        val p = TuningProcessor(Tunings.GuitarOpenD)
+        p.ring(Note.parse("D2").frequency(), 40)
+        val state = p.ring(Note.parse("D3").frequency(), 15, rms = 0.03)
+        assertEquals(2, state.stringIndex)
+        assertEquals(Note.parse("D3"), state.note)
+    }
+
+    @Test
+    fun clickOctaveSlipIsStillHeldInAPreset() {
+        val p = TuningProcessor(Tunings.GuitarStandard)
+        val a2 = Note.parse("A2")
+        p.ring(a2.frequency(), 30)
+        // A click: the level jumps, and four windows read an octave low.
+        val during = p.ring(a2.frequency() / 2, 4, rms = 0.05)
+        assertEquals(1, during.stringIndex)
+        assertEquals(0.0, during.cents, 0.5)
+        assertEquals(1, p.ring(a2.frequency(), 10, rms = 0.03).stringIndex)
     }
 
     @Test

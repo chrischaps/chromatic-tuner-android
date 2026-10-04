@@ -57,6 +57,7 @@ AudioRecorder → PitchDetector → TuningProcessor → TunerViewModel → Tuner
   - Clarity and RMS gate.
   - Steady-onset check, then a 5-frame median.
   - Stray-frame rejection.
+  - Octave guard: a jump of an octave is held for 6 frames, as a transient. In a preset, an octave jump with no fresh attack (no 1.5× level rise in the last 4 frames) is folded back onto the string. Phone mics barely hear a low string's fundamental, so a ringing low E can read as E3 for a second.
   - Note hysteresis (65¢, 3 frames).
   - `OneEuroFilter` on cents.
   - Lock at ±4¢ held for 400 ms.

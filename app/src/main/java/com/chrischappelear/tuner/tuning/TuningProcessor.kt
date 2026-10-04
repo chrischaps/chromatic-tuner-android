@@ -63,6 +63,11 @@ class TuningProcessor(
     private var pendingCount = 0
     private var silentFrames = 0
     private var octaveFrames = 0
+    /** Whether the current run of octave readings began with a fresh attack. */
+    private var octaveRunAttacked = false
+    /** Recent window levels, to tell a new pluck from a ringing string. */
+    private val recentRms = ArrayDeque<Double>()
+    private var framesSinceOnset = NO_ONSET
     private var lastPitchMs = 0L
     private var inTuneSinceMs: Long? = null
     private var locked = false
@@ -85,20 +90,25 @@ class TuningProcessor(
     fun reset() {
         clearTarget()
         recent.clear()
+        recentRms.clear()
+        framesSinceOnset = NO_ONSET
         history.clear()
         silentFrames = 0
         state = idleState()
     }
 
     fun process(estimate: PitchEstimate?, nowMs: Long): TunerState {
+        trackOnset(estimate?.rms)
         val minClarity = if (state.status == TunerStatus.Active) SUSTAIN_CLARITY else ONSET_CLARITY
         val hasPitch = estimate != null && estimate.clarity >= minClarity && estimate.rms >= MIN_RMS
 
-        state = when {
-            !hasPitch -> onSilence(nowMs)
-            isOctaveSlip(estimate!!.frequency) -> state // hold the reading through it
-            isStray(estimate) -> onSilence(nowMs)
-            else -> onPitch(estimate.frequency, nowMs)
+        state = if (!hasPitch) onSilence(nowMs) else {
+            val frequency = resolveOctave(estimate!!.frequency)
+            when {
+                frequency == null -> state // hold the reading through an octave slip
+                isStray(estimate.clarity, frequency) -> onSilence(nowMs)
+                else -> onPitch(frequency, nowMs)
+            }
         }
 
         history.add(
@@ -191,28 +201,54 @@ class TuningProcessor(
     }
 
     /**
+     * Decides what to do with a reading an octave from the running pitch: returns the
+     * frequency to use, or null to hold the last reading.
+     *
      * A brief transient (a click, a bump, string buzz) taints every analysis window that
      * overlaps it, up to window / hop = 4 frames, and can read as the octave below or
      * above with clarity to spare. So while tracking, a jump of almost exactly an octave
      * is held back unless it outlasts any single transient; a real octave change does.
+     *
+     * In a preset there is a second cause, which lasts far longer. A phone microphone
+     * barely hears a low string's fundamental, and as the note rings its odd harmonics
+     * can fade as well, until the sound really is periodic an octave up: a low E reads as
+     * E3 for a second at a time, which the nearest-string rule then calls D3. A string
+     * can't change octave without being plucked again, so in a preset an octave jump
+     * that didn't begin with a fresh attack is folded back onto the string being tracked.
+     * Chromatic doesn't fold, since a voice can leap an octave without one.
      */
-    private fun isOctaveSlip(frequency: Double): Boolean {
+    private fun resolveOctave(frequency: Double): Double? {
         if (state.status != TunerStatus.Active || recent.isEmpty()) {
             octaveFrames = 0
-            return false
+            return frequency
         }
         val median = recent.sorted()[recent.size / 2]
-        val offset = abs(1200 * log2(frequency / median))
-        if (abs(offset - 1200) > OCTAVE_TOLERANCE_CENTS) {
+        val offset = 1200 * log2(frequency / median)
+        if (abs(abs(offset) - 1200) > OCTAVE_TOLERANCE_CENTS) {
             octaveFrames = 0
-            return false
+            return frequency
         }
+        if (octaveFrames == 0) octaveRunAttacked = framesSinceOnset <= ONSET_GRACE_FRAMES
         octaveFrames++
-        if (octaveFrames <= OCTAVE_CONFIRM_FRAMES) return true
+        if (!tuning.isChromatic && !octaveRunAttacked) return if (offset > 0) frequency / 2 else frequency * 2
+        if (octaveFrames <= OCTAVE_CONFIRM_FRAMES) return null
         // It persisted: this is a real change of octave, so let the median start over.
         recent.clear()
         octaveFrames = 0
-        return false
+        return frequency
+    }
+
+    /**
+     * A pluck shows as a jump in level over the last few windows; a ringing string only
+     * decays. Frames with no reading at all still count as time passing.
+     */
+    private fun trackOnset(rms: Double?) {
+        if (framesSinceOnset < NO_ONSET) framesSinceOnset++
+        if (rms == null) return
+        val floor = recentRms.minOrNull()
+        if (floor != null && rms > ONSET_RISE * floor) framesSinceOnset = 0
+        recentRms.addLast(rms)
+        if (recentRms.size > ONSET_LOOKBACK_FRAMES) recentRms.removeFirst()
     }
 
     /**
@@ -220,11 +256,11 @@ class TuningProcessor(
      * more likely a room reflection or a fumbled pluck than a real change; real retuning
      * keeps clarity high. Such frames are treated as brief dropouts.
      */
-    private fun isStray(estimate: PitchEstimate): Boolean {
+    private fun isStray(clarity: Double, frequency: Double): Boolean {
         if (state.status != TunerStatus.Active || recent.isEmpty()) return false
-        if (estimate.clarity >= TRUSTED_CLARITY) return false
+        if (clarity >= TRUSTED_CLARITY) return false
         val median = recent.sorted()[recent.size / 2]
-        return abs(1200 * log2(estimate.frequency / median)) > STRAY_CENTS
+        return abs(1200 * log2(frequency / median)) > STRAY_CENTS
     }
 
     private fun isSteadyOnset(): Boolean {
@@ -299,6 +335,13 @@ class TuningProcessor(
         const val DROPOUT_FRAMES = 6
         const val OCTAVE_CONFIRM_FRAMES = 6
         const val OCTAVE_TOLERANCE_CENTS = 40.0
+        // A level 1.5× the quietest of the last 4 windows is a new attack; plucks measured
+        // on a phone jump 5–15×, and a ringing string never rises. An octave run that starts
+        // within 4 frames of one (a window's worth) belongs to that attack.
+        const val ONSET_RISE = 1.5
+        const val ONSET_LOOKBACK_FRAMES = 4
+        const val ONSET_GRACE_FRAMES = 4
+        private const val NO_ONSET = 1_000
         const val FADE_MS = 1_500L
     }
 }
