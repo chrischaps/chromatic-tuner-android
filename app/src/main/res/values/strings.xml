@@ -5,6 +5,12 @@
 
     <string name="hint_play_note">play a note</string>
     <string name="hint_play_string">play a string</string>
+    <string name="hint_tap_note">or tap below to hear one</string>
+    <string name="hint_tap_string">or tap one to hear it</string>
+    <string name="listen">listen</string>
+    <string name="play_reference">play reference tone</string>
+    <string name="reference_step_down">Reference a semitone lower</string>
+    <string name="reference_step_up">Reference a semitone higher</string>
     <string name="in_tune">in tune</string>
     <string name="cents_format">%1$s¢</string>
     <string name="tune_up">tune up</string>

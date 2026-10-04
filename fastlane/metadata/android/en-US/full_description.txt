@@ -19,8 +19,11 @@ In an instrument tuning, the tuner follows the nearest string, not just the near
 THE DRIFT TRACE
 A line beneath the meter shows the last eight seconds of your tuning drifting in toward the center. It is an easy way to see whether a string is settling or still creeping.
 
+REFERENCE TONES
+Tap any string to hear it, plucked like a real string rather than a flat beep, and in tune to within half a cent. Tune by ear against it, or check a note you can't quite hear. In chromatic mode, pick any note from E1 to C6. The tuner stops listening while the tone rings, so it never tunes to itself.
+
 REFERENCE PITCH
-Set A4 anywhere from 432 to 446 Hz to match a piano, a recording, or an ensemble that tunes a little high or low.
+Set A4 anywhere from 432 to 446 Hz to match a piano, a recording, or an ensemble that tunes a little high or low. Reference tones follow it too.
 
 STEADY, NOT JUMPY
 Chaps Tuner measures pitch with the McLeod Pitch Method and smooths the reading so it holds still on a sustained note but follows a turning peg without lag. Low strings read at the right octave, and the thump of a pick doesn't flash up as a note.

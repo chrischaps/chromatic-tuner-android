@@ -16,13 +16,15 @@ Feature ideas for upcoming Chaps Tuner releases, roughly in the order to build t
 - [x] **Custom tunings.** A small editor in the settings sheet that saves to `SettingsRepository`, so `Tunings.byId` resolves custom IDs too.
 - [x] **Microtonal strings.** Any custom string can be offset by ±50¢ from its note.
 
-## 2. Reference tones (tune by ear)
+## 2. Reference tones (tune by ear) ✅ (tested on the Pixel)
 
-- [ ] Tap a string chip in `StringRow` to play that note.
-- [ ] Make the tone with a Karplus-Strong plucked-string synth through `AudioTrack`, so it sounds like a string rather than a sine.
-- [ ] Ignore or gate mic frames while the tone plays, so the tuner doesn't detect its own output.
-- [ ] Use the current A4 setting.
-- [ ] In Chromatic mode, offer a reference-tone picker or long-press instead.
+- [x] Tap a string chip in `StringRow` to play that note. It ripples while it rings, slower for low strings.
+- [x] Make the tone with a Karplus-Strong plucked-string synth through `AudioTrack`, so it sounds like a string rather than a sine. (`PluckVoice`, tuned to within 0.5¢ by an allpass, checked by `PitchDetector` in tests.)
+- [x] Ignore or gate mic frames while the tone plays, so the tuner doesn't detect its own output. (`TonePlayer.isGating`, plus 400 ms after.)
+- [x] Use the current A4 setting, and any microtonal string offset.
+- [x] In Chromatic mode, offer a reference-tone picker or long-press instead. (A − / note / + picker, E1–C6; stepping plucks too.)
+- [x] Checked on the Pixel: the tones sound good, and the tuner doesn't hear itself.
+- Note for the future: the phone speaker can't reproduce 31–41 Hz, so the low bass strings rely on their harmonics. If a bass player finds them faint, try a brighter pluck for low notes.
 
 ## 3. Intonation check (guitar setup)
 

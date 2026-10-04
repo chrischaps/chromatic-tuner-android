@@ -10,6 +10,7 @@ A calm, accurate Android tuner for guitar, ukulele, and anything else that holds
 - **Custom tunings** of one to eight strings, built a semitone at a time. Each tuning is spelled with sharps or flats, so half-step down reads E♭ A♭ D♭ G♭ B♭ E♭.
 - **Microtonal strings.** Any custom string can be moved off equal temperament by up to ±50¢, for just intonation, quarter-tones or a sweetened tuning. The tuner then reads "in tune" at that offset pitch.
 - **Reference pitch** (A4) adjustable from 432 to 446 Hz.
+- **Reference tones, to tune by ear.** Tap a string to hear it plucked, at your A4 and with any microtonal offset. In Chromatic, pick any note from E1 to C6. The tone is a Karplus-Strong string rather than a sine, tuned to within half a cent, and the tuner ignores the microphone while it rings.
 - **Lock bloom.** When a note holds within ±4¢, the display glows and gives a single soft haptic tick.
 - **Drift trace.** The last 8 seconds of cents-from-target, centered on "in tune".
 - **Colorblind-friendly.** Drift is amber on both sides of center. Direction is shown by position and ♭/♯, never by red versus green.
@@ -33,6 +34,7 @@ AudioRecorder ──► PitchDetector ──► TuningProcessor ──► TunerV
    - It holds back octave jumps. In a preset, a jump that didn't come with a fresh pluck is folded back onto the string. A phone microphone barely hears a low string's fundamental, so a ringing low E can otherwise read as E3, which the nearest-string rule would call D3.
    - It holds a note through brief dropouts and lets it fade over 1.5 s.
    - It detects the "locked in tune" moment.
+4. **Reference tones** (`audio/PluckVoice.kt`, `audio/TonePlayer.kt`) are synthesized live by Karplus-Strong: a seeded noise burst, notched at the pick position, circulates through a one-period delay line. A first-order allpass, solved for the delay at the fundamental, trims the loop to the exact period. High notes soften less on each pass, so every string rings for about the same time. One streaming `AudioTrack` plays them and crossfades between plucks. Until 400 ms after the last sample, the ViewModel hands the processor silence instead of what the microphone hears.
 
 ## Project structure
 
@@ -42,7 +44,9 @@ app/src/main/java/com/chrischappelear/tuner/
 │   ├── AudioRecorder.kt     # Microphone capture as a Flow of pitch readings
 │   ├── CaptureProfile.kt    # Window, hop and pitch range: Standard, or Low for bass
 │   ├── PitchDetector.kt     # McLeod Pitch Method
-│   └── FFT.kt               # Iterative radix-2 FFT
+│   ├── FFT.kt               # Iterative radix-2 FFT
+│   ├── PluckVoice.kt        # Karplus-Strong plucked string, tuned to the period
+│   └── TonePlayer.kt        # Plays reference tones and gates the microphone
 ├── tuning/
 │   ├── Note.kt              # Notes, MIDI and frequency math, A4 calibration
 │   ├── Tunings.kt           # Instrument presets and groups
@@ -71,7 +75,7 @@ Requires JDK 17+ and the Android SDK (compile SDK 36).
 ./gradlew app:lint            # Lint
 ```
 
-The unit tests synthesize signals with `SignalGen`: pure and plucked tones for every open string, bass strings down to B0, detuned notes, a missing fundamental, a strong second harmonic, and noise at 10 dB SNR. They assert accuracy in cents.
+The unit tests synthesize signals with `SignalGen`: pure and plucked tones for every open string, bass strings down to B0, detuned notes, a missing fundamental, a strong second harmonic, and noise at 10 dB SNR. They assert accuracy in cents. The reference tones are checked by the app's own detector, which must read every string, bass included, within half a cent.
 
 ## License
 

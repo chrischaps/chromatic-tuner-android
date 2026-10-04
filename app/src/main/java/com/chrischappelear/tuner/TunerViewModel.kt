@@ -9,12 +9,16 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.chrischappelear.tuner.audio.AudioRecorder
 import com.chrischappelear.tuner.audio.CaptureProfile
+import com.chrischappelear.tuner.audio.ReferenceTone
+import com.chrischappelear.tuner.audio.TonePlayer
 import com.chrischappelear.tuner.data.SettingsRepository
 import com.chrischappelear.tuner.data.TunerSettings
+import com.chrischappelear.tuner.tuning.NoteMath
 import com.chrischappelear.tuner.tuning.TracePoint
 import com.chrischappelear.tuner.tuning.TunerState
 import com.chrischappelear.tuner.tuning.Tuning
 import com.chrischappelear.tuner.tuning.TuningProcessor
+import com.chrischappelear.tuner.tuning.TuningString
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -40,6 +44,10 @@ class TunerViewModel(application: Application) : AndroidViewModel(application) {
     private val recorder = AudioRecorder(application)
     private val settingsRepository = SettingsRepository(application)
     private val processor = TuningProcessor()
+    private val tonePlayer = TonePlayer(viewModelScope)
+
+    /** The reference tone ringing, if any; the screen shows it in place of the reading. */
+    val reference: StateFlow<ReferenceTone?> = tonePlayer.sounding
 
     private val _hasPermission = MutableStateFlow(checkPermission())
     val hasPermission: StateFlow<Boolean> = _hasPermission.asStateFlow()
@@ -59,6 +67,7 @@ class TunerViewModel(application: Application) : AndroidViewModel(application) {
      * Listens only while collected and permitted. The 2 s grace period keeps the
      * microphone open across a rotation but releases it soon after the app leaves
      * the screen. Moving between bass and other tunings reopens it with a new profile.
+     * While a reference tone plays, the microphone hears it, so those frames count as silence.
      */
     @OptIn(ExperimentalCoroutinesApi::class)
     val uiState: StateFlow<TunerUiState> = combine(_hasPermission, captureProfile, ::Pair)
@@ -69,7 +78,8 @@ class TunerViewModel(application: Application) : AndroidViewModel(application) {
                 .map { estimate ->
                     val current = settings.value
                     processor.configure(current.tuning, current.a4)
-                    val state = processor.process(estimate, SystemClock.elapsedRealtime())
+                    val now = SystemClock.elapsedRealtime()
+                    val state = processor.process(estimate.takeUnless { tonePlayer.isGating(now) }, now)
                     TunerUiState(state, processor.history.snapshot())
                 }
                 .flowOn(Dispatchers.Default)
@@ -91,6 +101,16 @@ class TunerViewModel(application: Application) : AndroidViewModel(application) {
 
     fun deleteCustomTuning(tuning: Tuning) {
         viewModelScope.launch { settingsRepository.deleteCustomTuning(tuning.id) }
+    }
+
+    /** Plucks [string] at the current A4; [stringIndex] is null for the chromatic picker. */
+    fun playReference(string: TuningString, stringIndex: Int?) {
+        val frequency = NoteMath.midiToFrequency(string.midi, settings.value.a4)
+        tonePlayer.play(string.note, string.cents, frequency, stringIndex)
+    }
+
+    fun stopReference() {
+        tonePlayer.stop()
     }
 
     fun setA4(a4: Double) {

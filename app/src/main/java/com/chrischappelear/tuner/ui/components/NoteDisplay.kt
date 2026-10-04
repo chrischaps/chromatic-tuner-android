@@ -32,6 +32,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.chrischappelear.tuner.R
+import com.chrischappelear.tuner.audio.ReferenceTone
 import com.chrischappelear.tuner.tuning.Note
 import com.chrischappelear.tuner.tuning.TunerState
 import com.chrischappelear.tuner.tuning.TunerStatus
@@ -44,24 +45,26 @@ import kotlin.math.roundToInt
 
 /**
  * The note being tuned, large, with a soft bloom behind it once it locks in tune.
+ * While a [reference] tone rings, it shows that note instead.
  * Always occupies the same space, so nothing below it jumps when it comes and goes.
  */
 @Composable
-fun NoteGlyph(state: TunerState, modifier: Modifier = Modifier) {
+fun NoteGlyph(state: TunerState, modifier: Modifier = Modifier, reference: ReferenceTone? = null) {
     val colors = TunerTheme.colors
     val active = state.status != TunerStatus.Idle
-    val bloom by animateFloatAsState(if (state.locked) 1f else 0f, tween(600), label = "bloom")
+    val locked = state.locked && reference == null
+    val bloom by animateFloatAsState(if (locked) 1f else 0f, tween(600), label = "bloom")
     val presence by animateFloatAsState(
-        targetValue = if (state.status == TunerStatus.Fading) 0.4f else 1f,
+        targetValue = if (state.status == TunerStatus.Fading && reference == null) 0.4f else 1f,
         animationSpec = tween(500),
         label = "presence"
     )
     val ink by animateColorAsState(
-        targetValue = if (state.locked) colors.glow else colors.ink,
+        targetValue = if (locked) colors.glow else colors.ink,
         animationSpec = tween(500),
         label = "ink"
     )
-    val swell by animateFloatAsState(if (state.locked) 1.04f else 1f, tween(450), label = "swell")
+    val swell by animateFloatAsState(if (locked) 1.04f else 1f, tween(450), label = "swell")
 
     Box(
         modifier = modifier
@@ -83,7 +86,7 @@ fun NoteGlyph(state: TunerState, modifier: Modifier = Modifier) {
         contentAlignment = Alignment.Center
     ) {
         AnimatedContent(
-            targetState = state.note.takeIf { active },
+            targetState = reference?.note ?: state.note.takeIf { active },
             transitionSpec = {
                 (fadeIn(tween(220)) + scaleIn(tween(220), initialScale = 0.94f))
                     .togetherWith(fadeOut(tween(160)))
@@ -125,9 +128,16 @@ private fun NoteName(note: Note, flats: Boolean, color: Color, modifier: Modifie
     }
 }
 
-/** Cents offset, frequency, and which way to turn the peg. */
+/**
+ * Cents offset, frequency, and which way to turn the peg; or, while a [reference]
+ * tone rings, its pitch.
+ */
 @Composable
-fun Readout(state: TunerState, modifier: Modifier = Modifier) {
+fun Readout(state: TunerState, modifier: Modifier = Modifier, reference: ReferenceTone? = null) {
+    if (reference != null) {
+        ReferenceReadout(reference, modifier)
+        return
+    }
     val colors = TunerTheme.colors
     val active = state.status != TunerStatus.Idle
     val cents = state.cents.roundToInt()
@@ -166,7 +176,9 @@ fun Readout(state: TunerState, modifier: Modifier = Modifier) {
             textAlign = TextAlign.Center
         )
         Text(
-            text = if (!active) " " else buildString {
+            text = if (!active) stringResource(
+                if (state.tuning.isChromatic) R.string.hint_tap_note else R.string.hint_tap_string
+            ) else buildString {
                 if (state.stringCents != 0) {
                     append(targetLabel)
                     append("  ·  ")
@@ -176,6 +188,32 @@ fun Readout(state: TunerState, modifier: Modifier = Modifier) {
                     append("  ·  ")
                     append(turnHint)
                 }
+            },
+            style = TunerType.detail,
+            color = colors.inkMuted,
+            textAlign = TextAlign.Center
+        )
+    }
+}
+
+@Composable
+private fun ReferenceReadout(reference: ReferenceTone, modifier: Modifier = Modifier) {
+    val colors = TunerTheme.colors
+    val targetLabel = stringResource(R.string.string_target, TuningString.centsLabel(reference.cents))
+    Column(modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
+        Text(
+            text = stringResource(R.string.listen),
+            style = TunerType.cents,
+            color = colors.ink,
+            textAlign = TextAlign.Center
+        )
+        Text(
+            text = buildString {
+                if (reference.cents != 0) {
+                    append(targetLabel)
+                    append("  ·  ")
+                }
+                append(String.format(Locale.getDefault(), "%.1f Hz", reference.frequency))
             },
             style = TunerType.detail,
             color = colors.inkMuted,

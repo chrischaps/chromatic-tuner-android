@@ -404,7 +404,7 @@ private fun CentsAdjuster(number: Int, cents: Int, onCentsChanged: (Int) -> Unit
 }
 
 @Composable
-private fun StepButton(glyph: String, description: String, enabled: Boolean, size: Dp = 40.dp, onClick: () -> Unit) {
+internal fun StepButton(glyph: String, description: String, enabled: Boolean, size: Dp = 40.dp, onClick: () -> Unit) {
     val colors = TunerTheme.colors
     Box(
         Modifier

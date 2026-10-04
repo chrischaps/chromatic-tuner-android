@@ -41,10 +41,12 @@ class MainActivity : ComponentActivity() {
                 val uiState by viewModel.uiState.collectAsStateWithLifecycle()
                 val settings by viewModel.settings.collectAsStateWithLifecycle()
                 val hasPermission by viewModel.hasPermission.collectAsStateWithLifecycle()
+                val reference by viewModel.reference.collectAsStateWithLifecycle()
 
                 TunerScreen(
                     uiState = uiState,
                     settings = settings,
+                    reference = reference,
                     hasPermission = hasPermission,
                     permissionPermanentlyDenied = permanentlyDenied,
                     onRequestPermission = { requestPermission.launch(Manifest.permission.RECORD_AUDIO) },
@@ -52,7 +54,8 @@ class MainActivity : ComponentActivity() {
                     onTuningSelected = viewModel::setTuning,
                     onA4Changed = viewModel::setA4,
                     onSaveCustomTuning = viewModel::saveCustomTuning,
-                    onDeleteCustomTuning = viewModel::deleteCustomTuning
+                    onDeleteCustomTuning = viewModel::deleteCustomTuning,
+                    onPlayReference = viewModel::playReference
                 )
             }
         }
@@ -62,6 +65,12 @@ class MainActivity : ComponentActivity() {
         super.onResume()
         // The permission may have been granted or revoked from system settings.
         viewModel.refreshPermission()
+    }
+
+    override fun onStop() {
+        super.onStop()
+        // A tone shouldn't follow the user out of the app, but it can ring through a rotation.
+        if (!isChangingConfigurations) viewModel.stopReference()
     }
 
     private fun openAppSettings() {

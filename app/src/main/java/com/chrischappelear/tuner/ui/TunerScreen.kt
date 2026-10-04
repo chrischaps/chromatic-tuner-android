@@ -46,6 +46,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.min
 import com.chrischappelear.tuner.R
 import com.chrischappelear.tuner.TunerUiState
+import com.chrischappelear.tuner.audio.ReferenceTone
 import com.chrischappelear.tuner.data.TunerSettings
 import com.chrischappelear.tuner.tuning.Note
 import com.chrischappelear.tuner.tuning.TracePoint
@@ -58,7 +59,9 @@ import com.chrischappelear.tuner.ui.components.CentsTrace
 import com.chrischappelear.tuner.ui.components.CustomTuningCard
 import com.chrischappelear.tuner.ui.components.NoteGlyph
 import com.chrischappelear.tuner.ui.components.PermissionScreen
+import com.chrischappelear.tuner.ui.components.REFERENCE_RANGE
 import com.chrischappelear.tuner.ui.components.Readout
+import com.chrischappelear.tuner.ui.components.ReferencePicker
 import com.chrischappelear.tuner.ui.components.SettingsContent
 import com.chrischappelear.tuner.ui.components.SettingsSheet
 import com.chrischappelear.tuner.ui.components.StringRow
@@ -73,6 +76,7 @@ import kotlin.math.roundToInt
 fun TunerScreen(
     uiState: TunerUiState,
     settings: TunerSettings,
+    reference: ReferenceTone?,
     hasPermission: Boolean,
     permissionPermanentlyDenied: Boolean,
     onRequestPermission: () -> Unit,
@@ -80,7 +84,8 @@ fun TunerScreen(
     onTuningSelected: (Tuning) -> Unit,
     onA4Changed: (Double) -> Unit,
     onSaveCustomTuning: (Tuning) -> Unit,
-    onDeleteCustomTuning: (Tuning) -> Unit
+    onDeleteCustomTuning: (Tuning) -> Unit,
+    onPlayReference: (TuningString, Int?) -> Unit
 ) {
     val colors = TunerTheme.colors
     Box(
@@ -108,7 +113,10 @@ fun TunerScreen(
                 onOpenSettings = onOpenAppSettings
             )
         } else {
-            TunerContent(uiState, settings, onTuningSelected, onA4Changed, onSaveCustomTuning, onDeleteCustomTuning)
+            TunerContent(
+                uiState, settings, reference,
+                onTuningSelected, onA4Changed, onSaveCustomTuning, onDeleteCustomTuning, onPlayReference
+            )
         }
     }
 }
@@ -117,13 +125,39 @@ fun TunerScreen(
 private fun TunerContent(
     uiState: TunerUiState,
     settings: TunerSettings,
+    reference: ReferenceTone?,
     onTuningSelected: (Tuning) -> Unit,
     onA4Changed: (Double) -> Unit,
     onSaveCustomTuning: (Tuning) -> Unit,
-    onDeleteCustomTuning: (Tuning) -> Unit
+    onDeleteCustomTuning: (Tuning) -> Unit,
+    onPlayReference: (TuningString, Int?) -> Unit
 ) {
     val state = uiState.tuner
     var showSettings by rememberSaveable { mutableStateOf(false) }
+    var pickerMidi by rememberSaveable { mutableIntStateOf(Note.parse("A4").midi) }
+
+    // Strings to tap in a preset; in chromatic, a single note to pick and pluck.
+    val strings: @Composable (Modifier) -> Unit = { modifier ->
+        if (state.tuning.isChromatic) {
+            ReferencePicker(
+                note = Note(pickerMidi),
+                reference = reference,
+                onStep = { step ->
+                    pickerMidi = (pickerMidi + step).coerceIn(REFERENCE_RANGE)
+                    onPlayReference(TuningString(Note(pickerMidi)), null)
+                },
+                onPluck = { onPlayReference(TuningString(Note(pickerMidi)), null) },
+                modifier = modifier
+            )
+        } else {
+            StringRow(
+                state = state,
+                reference = reference,
+                onPluck = { index -> onPlayReference(state.tuning.strings[index], index) },
+                modifier = modifier
+            )
+        }
+    }
 
     KeepScreenOn()
     LockHaptics(state.lockCount)
@@ -135,19 +169,19 @@ private fun TunerContent(
 
             if (landscape) {
                 Row(Modifier.weight(1f), verticalAlignment = Alignment.CenterVertically) {
-                    Dial(state, Modifier.weight(1f))
+                    Dial(state, reference, Modifier.weight(1f))
                     Spacer(Modifier.width(24.dp))
                     Column(Modifier.weight(1f), verticalArrangement = Arrangement.Center) {
-                        StringRow(state, Modifier.padding(bottom = 16.dp))
+                        strings(Modifier.padding(bottom = 16.dp))
                         CentsTrace(uiState.history, flats = state.tuning.flats, height = 88.dp)
                     }
                 }
                 Spacer(Modifier.height(12.dp))
             } else {
                 Spacer(Modifier.weight(1f))
-                Dial(state)
+                Dial(state, reference)
                 Spacer(Modifier.height(20.dp))
-                StringRow(state)
+                strings(Modifier)
                 Spacer(Modifier.weight(1f))
                 CentsTrace(uiState.history, Modifier.padding(bottom = 16.dp), flats = state.tuning.flats)
             }
@@ -166,23 +200,23 @@ private fun TunerContent(
     }
 }
 
-/** The arc, the note sitting beneath it, and the readout. */
+/** The arc, the note sitting beneath it, and the readout; or the reference tone ringing. */
 @Composable
-private fun Dial(state: TunerState, modifier: Modifier = Modifier) {
+private fun Dial(state: TunerState, reference: ReferenceTone?, modifier: Modifier = Modifier) {
     BoxWithConstraints(modifier.fillMaxWidth(), contentAlignment = Alignment.TopCenter) {
         val radius = min(maxWidth * 0.44f, 210.dp)
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             TuningMeter(
-                cents = state.cents.toFloat().takeIf { state.status != TunerStatus.Idle },
-                locked = state.locked,
+                cents = state.cents.toFloat().takeIf { state.status != TunerStatus.Idle && reference == null },
+                locked = state.locked && reference == null,
                 dimmed = state.status == TunerStatus.Fading,
                 radius = radius,
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(meterHeightFor(radius))
             )
-            NoteGlyph(state, Modifier.offset(y = (-6).dp))
-            Readout(state)
+            NoteGlyph(state, Modifier.offset(y = (-6).dp), reference)
+            Readout(state, reference = reference)
         }
     }
 }
@@ -275,11 +309,12 @@ private fun previewState(cents: Double, locked: Boolean = false, status: TunerSt
     )
 
 @Composable
-private fun Preview(uiState: TunerUiState, darkTheme: Boolean = true) {
+private fun Preview(uiState: TunerUiState, darkTheme: Boolean = true, reference: ReferenceTone? = null) {
     ChromaticTunerTheme(darkTheme = darkTheme) {
         TunerScreen(
             uiState = uiState,
             settings = TunerSettings(tuning = uiState.tuner.tuning),
+            reference = reference,
             hasPermission = true,
             permissionPermanentlyDenied = false,
             onRequestPermission = {},
@@ -287,7 +322,8 @@ private fun Preview(uiState: TunerUiState, darkTheme: Boolean = true) {
             onTuningSelected = {},
             onA4Changed = {},
             onSaveCustomTuning = {},
-            onDeleteCustomTuning = {}
+            onDeleteCustomTuning = {},
+            onPlayReference = { _, _ -> }
         )
     }
 }
@@ -307,6 +343,17 @@ private fun SharpLightPreview() = Preview(previewState(31.0), darkTheme = false)
 @Preview(name = "Idle", widthDp = 390, heightDp = 844)
 @Composable
 private fun IdlePreview() = Preview(TunerUiState())
+
+@Preview(name = "Reference", widthDp = 390, heightDp = 844)
+@Composable
+private fun ReferencePreview() = Preview(
+    TunerUiState(tuner = TunerState(tuning = Tunings.GuitarStandard)),
+    reference = ReferenceTone(Note.parse("D3"), cents = 0, frequency = 146.83, stringIndex = 2, id = 0)
+)
+
+@Preview(name = "Chromatic · light", widthDp = 390, heightDp = 844)
+@Composable
+private fun ChromaticPreview() = Preview(TunerUiState(), darkTheme = false)
 
 @Preview(name = "Landscape", widthDp = 844, heightDp = 390, uiMode = Configuration.UI_MODE_NIGHT_YES)
 @Composable
