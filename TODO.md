@@ -54,22 +54,16 @@ Feature ideas for upcoming Chaps Tuner releases, roughly in the order to build t
 
 - [ ] **The settings sheet jumps when you switch instrument chips.** The sheet is only as tall as its content, so going from Guitar (6 tunings) to Bass (2) drops it by several rows, and a tap aimed at a row can land outside the sheet and close it. Give the tuning list a minimum height equal to the longest group.
 
-## Store and site media reshoot
+## Store and site media reshoot ✅ (Play images, Oct 4)
 
-Do this once the next batch of features has landed, so one shoot covers them all.
-
-- [ ] **Replace `5_settings.png` before uploading 1.0.** The current one shows the old list of four tunings.
-- [ ] Shot list, adding any new features by then:
-  - **Settings sheet:** a couple of real custom tunings on top, e.g. "Open C · just third" with `E−14¢` visible, and the instrument chips below.
-  - **Custom editor with fine-tune open:** the high E's chip in sage at −14¢, with the slider showing.
-  - **Bass · 5-string:** pills filling in, with low B locked in sage. Use a real bass, because PC speakers can't play 31–41 Hz.
-  - **Half-step down:** a big E♭ easing into lock, to show the flat spelling.
-- [ ] Reuse the capture script `cap.py`, which plays tones and taps through screenshots on cue. It's in the scratchpad of the Oct 1 Tuner session, `994c28f7-…/scratchpad/cap/`; copy it into the repo or a stable place first.
-- [ ] Rebuild the compositor, which wasn't saved. It has to:
-  - Paint over the status bar and the gesture pill, so no personal notification icons ship.
-  - Frame shots at 1080×1920 with captions for Play, and at 1920×1080 for the chaps.dev grid.
-- [ ] Prepare the room: Do Not Disturb on, the phone beside the speaker, the laptop fan away from the mic, and quiet during takes.
-- [ ] Update the chaps.dev Tuner page stills and copy to match: bass, custom and microtonal tunings.
+- [x] Eight new Play screenshots and a feature graphic tagged "guitar · bass · ukulele · voice". The shots: lock with the strings filled in, practice over a drone, half-step down in flats, low B ringing on the 5-string bass, the settings sheet with two custom tunings, the custom editor's fine-tune, light theme, and the permission screen.
+- [x] The capture kit lives in `fastlane/capture/`:
+  - `cap.py` plays tones and takes screenshots on cue.
+  - `scenes.py` has one function per shot. The microphone scenes need the quiet room.
+  - `play_compose.py` frames the 1080×1920 images with captions and paints out the status bar.
+  - `compose.py` makes the 16:9 site stills, and `feature.py` makes the feature graphic.
+- Captions and images can't say "free" or "no ads": Play treats that as promotional.
+- [ ] Update the chaps.dev Tuner page stills and copy to match: bass, custom and microtonal tunings, reference tones, practice. `compose.py` makes the 1920×1080 stills from the same raw captures.
 
 ## Also considered
 

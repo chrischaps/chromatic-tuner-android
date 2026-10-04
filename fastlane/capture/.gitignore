@@ -1,0 +1,4 @@
+raw/
+out/
+*.wav
+__pycache__/
