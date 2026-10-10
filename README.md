@@ -2,6 +2,8 @@
 
 A calm, accurate Android tuner for guitar, ukulele, and anything else that holds a pitch, built with Kotlin and Jetpack Compose.
 
+**Project page:** [chaps.dev/projects/chromatic-tuner](https://chaps.dev/projects/chromatic-tuner/), with screenshots of the meter in use.
+
 ## Features
 
 - **Accurate to about a cent** from C2 (65 Hz) to 1400 Hz, using the McLeod Pitch Method, and down to B0 (31 Hz) in bass tunings.
